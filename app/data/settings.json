@@ -1,0 +1,7 @@
+{
+  "schedule_enabled": false,
+  "schedule_frequency": "weekly",
+  "schedule_mode": "quick",
+  "ai_enabled": true,
+  "license_tier": "free"
+}

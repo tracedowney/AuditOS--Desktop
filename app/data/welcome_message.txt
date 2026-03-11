@@ -1,0 +1,39 @@
+﻿AuditOS Beta
+
+AuditOS is NOT antivirus software.
+AuditOS is NOT a malware scanner.
+AuditOS is NOT a virus detector.
+
+AuditOS is a system transparency and auditing tool.
+
+Its purpose is to help you understand what your computer is doing.
+
+AuditOS analyzes things like:
+
+• Active network connections
+• Listening ports
+• Startup programs
+• Scheduled tasks
+• Browser extensions
+• DNS and proxy settings
+• System certificates
+
+The goal is to provide visibility into background processes and system behavior so users can:
+
+• Understand what is running on their machine
+• Verify that security tools are behaving as expected
+• Detect unexpected system changes
+• Make informed decisions about security settings
+
+AuditOS does NOT attempt to classify software as malware.
+
+Instead it provides clear information so the user can decide what is normal for their system.
+
+Future versions will include:
+
+• Scheduled audits
+• Change history timeline
+• Cross-device comparison
+• Optional AI explanation of findings
+
+Thank you for helping test AuditOS.

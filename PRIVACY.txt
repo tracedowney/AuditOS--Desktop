@@ -1,0 +1,13 @@
+AuditOS Privacy Notice
+
+AuditOS performs system audits locally.
+
+Current beta characteristics:
+• scans only run when initiated by the user
+• no automatic background monitoring
+• audit reports stored locally
+• baseline snapshots stored locally
+
+Future optional AI features may require user consent before transmitting analysis data.
+
+AuditOS aims to provide transparency without hidden background activity.

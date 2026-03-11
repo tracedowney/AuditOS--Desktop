@@ -1,0 +1,236 @@
+[2026-03-11T03:26:29.804944Z] Application starting
+[2026-03-11T03:26:35.138590Z] Worker starting audit mode=quick
+[2026-03-11T03:26:37.756009Z] Worker finished audit mode=quick
+[2026-03-11T03:33:27.004828Z] Application starting
+
+[2026-03-11T03:33:31.891726Z] GLOBAL EXCEPTION
+Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\ui\main_window.py", line 193, in show_changes
+    diff = build_diff(
+        baseline["report"],
+        self.current_report
+    )
+  File "C:\Scripts\AuditOS\app\services\diff_engine.py", line 10, in build_diff
+    new_ext = new_report.get("browser_extensions", {}).get("items", [])
+              ^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+
+[2026-03-11T03:33:34.006988Z] UI requested audit mode=deep
+[2026-03-11T03:33:34.010538Z] Worker starting audit mode=deep
+[2026-03-11T03:33:36.894003Z] Worker finished audit mode=deep
+[2026-03-11T03:33:36.900057Z] audit_finished() called
+[2026-03-11T03:33:36.902524Z] Summary keys: ['component', 'counts', 'overall_risk', 'recommendations', 'top_findings', 'total_findings']
+[2026-03-11T03:33:36.902670Z] Findings count: 25
+[2026-03-11T03:33:36.910536Z] UI update completed
+[2026-03-11T03:33:47.581573Z] Saving baseline
+[2026-03-11T03:33:47.587603Z] Baseline saved successfully
+[2026-03-11T03:34:02.960393Z] UI requested audit mode=deep
+[2026-03-11T03:38:05.627155Z] Application starting
+[2026-03-11T03:38:10.952129Z] UI requested audit mode=deep
+[2026-03-11T03:38:10.953979Z] Worker starting audit mode=deep
+[2026-03-11T03:38:13.774983Z] Worker finished audit mode=deep
+[2026-03-11T03:38:13.781198Z] audit_finished called
+[2026-03-11T03:38:13.791556Z] UI update completed
+[2026-03-11T03:38:13.793367Z] Cleaning up worker thread
+[2026-03-11T03:38:23.358576Z] Baseline saved successfully
+[2026-03-11T03:38:27.503790Z] UI requested audit mode=quick
+[2026-03-11T03:38:27.506913Z] Worker starting audit mode=quick
+[2026-03-11T03:38:30.181975Z] Worker finished audit mode=quick
+[2026-03-11T03:38:30.185219Z] audit_finished called
+[2026-03-11T03:38:30.192969Z] UI update completed
+[2026-03-11T03:38:30.193959Z] Cleaning up worker thread
+[2026-03-11T03:38:33.946414Z] Displayed 0 baseline changes
+[2026-03-11T03:38:39.764688Z] Displayed 0 baseline changes
+[2026-03-11T03:38:54.662593Z] UI requested audit mode=deep
+[2026-03-11T03:38:54.664506Z] Worker starting audit mode=deep
+[2026-03-11T03:38:57.457611Z] Worker finished audit mode=deep
+[2026-03-11T03:38:57.463024Z] audit_finished called
+[2026-03-11T03:38:57.472535Z] UI update completed
+[2026-03-11T03:38:57.473845Z] Cleaning up worker thread
+[2026-03-11T03:39:01.568664Z] Baseline saved successfully
+[2026-03-11T03:39:06.014352Z] UI requested audit mode=quick
+[2026-03-11T03:39:06.017818Z] Worker starting audit mode=quick
+[2026-03-11T03:39:08.622521Z] Worker finished audit mode=quick
+[2026-03-11T03:39:08.625510Z] audit_finished called
+[2026-03-11T03:39:08.632970Z] UI update completed
+[2026-03-11T03:39:08.634002Z] Cleaning up worker thread
+[2026-03-11T03:39:50.255926Z] UI requested audit mode=quick
+[2026-03-11T03:39:50.257874Z] Worker starting audit mode=quick
+[2026-03-11T03:39:52.929415Z] Worker finished audit mode=quick
+[2026-03-11T03:39:52.932435Z] audit_finished called
+[2026-03-11T03:39:52.937829Z] UI update completed
+[2026-03-11T03:39:52.938848Z] Cleaning up worker thread
+[2026-03-11T03:39:59.580240Z] UI requested audit mode=deep
+[2026-03-11T03:39:59.583895Z] Worker starting audit mode=deep
+[2026-03-11T03:40:02.323999Z] Worker finished audit mode=deep
+[2026-03-11T03:40:02.328906Z] audit_finished called
+[2026-03-11T03:40:02.338429Z] UI update completed
+[2026-03-11T03:40:02.340008Z] Cleaning up worker thread
+[2026-03-11T03:40:37.375364Z] UI requested audit mode=deep
+[2026-03-11T03:40:37.377044Z] Worker starting audit mode=deep
+[2026-03-11T03:40:40.114558Z] Worker finished audit mode=deep
+[2026-03-11T03:40:40.119938Z] audit_finished called
+[2026-03-11T03:40:40.129837Z] UI update completed
+[2026-03-11T03:40:40.131217Z] Cleaning up worker thread
+[2026-03-11T03:40:46.149728Z] Displayed 0 baseline changes
+[2026-03-11T03:40:47.689414Z] Baseline saved successfully
+[2026-03-11T03:41:26.503924Z] UI requested audit mode=quick
+[2026-03-11T03:41:26.506958Z] Worker starting audit mode=quick
+[2026-03-11T03:41:29.171988Z] Worker finished audit mode=quick
+[2026-03-11T03:41:29.175116Z] audit_finished called
+[2026-03-11T03:41:29.180634Z] UI update completed
+[2026-03-11T03:41:29.181539Z] Cleaning up worker thread
+[2026-03-11T03:42:01.837542Z] Displayed 0 baseline changes
+[2026-03-11T04:01:13.705056Z] UI requested audit mode=quick
+[2026-03-11T04:01:13.706956Z] Worker starting audit mode=quick
+[2026-03-11T04:01:16.337603Z] Worker finished audit mode=quick
+[2026-03-11T04:01:16.340651Z] audit_finished called
+[2026-03-11T04:01:16.345961Z] UI update completed
+[2026-03-11T04:01:16.346944Z] Cleaning up worker thread
+[2026-03-11T04:01:26.189277Z] UI requested audit mode=deep
+[2026-03-11T04:01:26.190951Z] Worker starting audit mode=deep
+[2026-03-11T04:01:28.914956Z] Worker finished audit mode=deep
+[2026-03-11T04:01:28.920223Z] audit_finished called
+[2026-03-11T04:01:28.929815Z] UI update completed
+[2026-03-11T04:01:28.931159Z] Cleaning up worker thread
+[2026-03-11T04:01:33.107963Z] Displayed 0 baseline changes
+[2026-03-11T04:01:40.187349Z] Application exiting with code 0
+[2026-03-11T04:34:27.496049Z] Application starting
+[2026-03-11T04:34:42.050706Z] UI requested audit mode=quick
+[2026-03-11T04:34:42.054847Z] Worker starting audit mode=quick
+[2026-03-11T04:34:42.097046Z] Worker exception: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T04:34:42.097620Z] audit_failed: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T04:34:42.145803Z] Cleaning up worker thread
+[2026-03-11T04:34:54.686322Z] UI requested audit mode=quick
+[2026-03-11T04:34:54.690055Z] Worker starting audit mode=quick
+[2026-03-11T04:34:54.693174Z] Worker exception: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T04:34:54.693769Z] audit_failed: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T04:34:54.727487Z] Cleaning up worker thread
+[2026-03-11T04:35:25.649703Z] UI requested audit mode=deep
+[2026-03-11T04:35:25.651987Z] Worker starting audit mode=deep
+[2026-03-11T04:35:25.653962Z] Worker exception: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T04:35:25.654823Z] audit_failed: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T04:35:25.685054Z] Cleaning up worker thread
+[2026-03-11T14:17:46.333179Z] UI requested audit mode=deep
+[2026-03-11T14:17:46.337654Z] Worker starting audit mode=deep
+[2026-03-11T14:17:46.339144Z] Worker exception: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T14:17:46.340506Z] audit_failed: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T14:17:46.369920Z] Cleaning up worker thread
+[2026-03-11T14:18:02.485188Z] Application exiting with code 0
+[2026-03-11T14:18:11.838944Z] Application starting
+[2026-03-11T14:18:13.795367Z] UI requested audit mode=quick
+[2026-03-11T14:18:13.798971Z] Worker starting audit mode=quick
+[2026-03-11T14:18:13.842934Z] Worker exception: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T14:18:13.843345Z] audit_failed: Traceback (most recent call last):
+  File "C:\Scripts\AuditOS\app\workers.py", line 22, in run
+    report = run_audit(mode=self.mode)
+  File "C:\Scripts\AuditOS\app\engine_adapter.py", line 10, in run_audit
+    report = build_report(mode=mode)
+  File "C:\Scripts\AuditOS\app\engine\run_full_audit.py", line 21, in build_report
+    "browser_extensions": audit_browser_extensions(),
+                          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Scripts\AuditOS\app\engine\audit_browser_extensions.py", line 8, in audit_browser_extensions
+    from .browser_extensions.windows import run
+ImportError: cannot import name 'run' from 'engine.browser_extensions.windows' (C:\Scripts\AuditOS\app\engine\browser_extensions\windows.py)
+
+[2026-03-11T14:18:13.879081Z] Cleaning up worker thread
+[2026-03-11T14:18:20.517298Z] Application exiting with code 0
