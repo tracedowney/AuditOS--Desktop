@@ -50,36 +50,26 @@ Network Behavior Monitoring
 
 
 
-\### Mac
+### Mac
 
+Download the macOS build zip from this repository.
 
-
-Download the macOS build and open `AuditOS.app`.
-
-
+Unzip the file and open `AuditOS.app`.
 
 If macOS blocks the app:
 
+Right click the app → **Open** → **Open**.
 
 
-Right click the app → Open → Allow.
+### Windows
 
+Download `AuditOS_Windows_Beta_v0.1.zip` from this repository.
 
-
-\### Windows
-
-
-
-Download the Windows build and run `AuditOS.exe`.
-
-
+Unzip the file, open the extracted folder, and run `AuditOS.exe`.
 
 If Windows SmartScreen appears:
 
-
-
-Click \*\*More Info → Run Anyway\*\*.
-
+Click **More info → Run anyway**.
 
 
 \## Feedback
