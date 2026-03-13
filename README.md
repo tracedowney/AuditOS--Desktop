@@ -82,7 +82,7 @@ Please report crashes, unexpected behavior, or suspicious findings.
 
 
 
-\## License
+## License
 
 
 
