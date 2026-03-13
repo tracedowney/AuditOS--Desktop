@@ -46,31 +46,31 @@ Network Behavior Monitoring
 
 
 
-## Beta Test Instructions
+## Beta Tester Downloads
 
+Beta builds are available on the GitHub Releases page.
 
+Download the version for your operating system from the latest pre-release.
+
+### Windows
+
+Download `AuditOS_Windows_Beta_v0.1.zip` from Releases.
+
+Unzip the file and run `AuditOS.exe`.
+
+If Windows SmartScreen appears:
+
+Click **More info → Run anyway**.
 
 ### Mac
 
-Download the macOS build zip from this repository.
+Download `AuditOS_macOS_Beta_v0.1.zip` from Releases.
 
 Unzip the file and open `AuditOS.app`.
 
 If macOS blocks the app:
 
 Right click the app → **Open** → **Open**.
-
-
-### Windows
-
-Download `AuditOS_Windows_Beta_v0.1.zip` from this repository.
-
-Unzip the file, open the extracted folder, and run `AuditOS.exe`.
-
-If Windows SmartScreen appears:
-
-Click **More info → Run anyway**.
-
 
 ## Feedback
 
