@@ -1,4 +1,4 @@
-\# AuditOS
+# AuditOS
 
 
 
@@ -10,7 +10,7 @@ The application performs security and configuration audits and highlights potent
 
 
 
-\## Core Principles
+## Core Principles
 
 
 
@@ -30,7 +30,7 @@ AuditOS is an informational audit tool designed to help users better understand 
 
 
 
-\## Features
+## Features
 
 
 
@@ -46,7 +46,7 @@ Network Behavior Monitoring
 
 
 
-\## Beta Test Instructions
+## Beta Test Instructions
 
 
 
@@ -72,7 +72,7 @@ If Windows SmartScreen appears:
 Click **More info → Run anyway**.
 
 
-\## Feedback
+## Feedback
 
 
 
