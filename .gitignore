@@ -1,17 +1,41 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
+*.so
+.python-version
+
+# Virtual environments
 .venv/
 venv/
-dist/
+env/
+
+# Build output
 build/
-*.spec
+dist/
+
+# Packaging / temp logs
+_pyinstaller_build*.log
+warn-*.txt
+xref-*.html
+
+# Local generated reports and runtime data
+audit_report*.json
+full_security_audit*.json
+app/data/behavior_history/
+app/data/*.json
+app/data/**/*.json
+
+# Local backup / scratch folders
+_*backup_*/
+_parser_cleanup_bundle_*/
+
+# OS / editor
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
 
-app/data/crash.log
-app/data/last_report.json
-app/data/baseline.json
-app/data/settings.json
-app/data/behavior_history/
+# Misc logs
+*.log

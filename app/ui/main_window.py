@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from workers import start_audit_in_thread
 from ui.findings_table import FindingsTable
 from ui.changes_table import ChangesTable
+from ui.behavior_table import BehaviorTable
 from ui.settings_dialog import SettingsDialog
 from services.baseline_store import save_baseline, save_last_report, load_baseline
 from services.diff_engine import build_diff
@@ -72,7 +73,6 @@ def format_summary_text(summary: dict, behavior_text: str = "") -> str:
 
 
 class MainWindow(QMainWindow):
-
     def __init__(self):
         super().__init__()
 
@@ -80,10 +80,16 @@ class MainWindow(QMainWindow):
 
         self.current_report = None
         self.current_findings = []
+        self.current_behavior = {
+            "new_connections": [],
+            "new_listening_ports": [],
+            "new_extensions": [],
+        }
 
         self.thread = None
         self.worker = None
         self.audit_running = False
+        self.baseline_prompt_shown_this_session = False
 
         self.status = QLabel("AuditOS - System Transparency Audit Tool")
 
@@ -107,28 +113,34 @@ class MainWindow(QMainWindow):
 
         self.findings = FindingsTable()
         self.changes_table = ChangesTable()
+        self.behavior_table = BehaviorTable()
 
         self.details = QTextEdit()
         self.details.setReadOnly(True)
 
-        tabs = QTabWidget()
+        self.tabs = QTabWidget()
 
-        tab1 = QWidget()
-        l1 = QVBoxLayout(tab1)
-        l1.addWidget(self.findings)
-        l1.addWidget(self.details)
+        findings_tab = QWidget()
+        findings_layout = QVBoxLayout(findings_tab)
+        findings_layout.addWidget(self.findings)
+        findings_layout.addWidget(self.details)
 
-        tab2 = QWidget()
-        l2 = QVBoxLayout(tab2)
-        l2.addWidget(self.changes_table)
+        changes_tab = QWidget()
+        changes_layout = QVBoxLayout(changes_tab)
+        changes_layout.addWidget(self.changes_table)
 
-        tabs.addTab(tab1, "Findings")
-        tabs.addTab(tab2, "Changes")
+        behavior_tab = QWidget()
+        behavior_layout = QVBoxLayout(behavior_tab)
+        behavior_layout.addWidget(self.behavior_table)
+
+        self.tabs.addTab(findings_tab, "Findings")
+        self.tabs.addTab(changes_tab, "Changes")
+        self.tabs.addTab(behavior_tab, "Behavior")
 
         layout = QVBoxLayout()
         layout.addWidget(self.status)
         layout.addLayout(button_row)
-        layout.addWidget(tabs)
+        layout.addWidget(self.tabs)
 
         container = QWidget()
         container.setLayout(layout)
@@ -173,6 +185,41 @@ class MainWindow(QMainWindow):
 
         self.audit_running = False
 
+    def _maybe_prompt_to_create_baseline(self):
+        try:
+            if not self.current_report:
+                return
+
+            existing_baseline = load_baseline()
+            if existing_baseline:
+                return
+
+            if self.baseline_prompt_shown_this_session:
+                return
+
+            self.baseline_prompt_shown_this_session = True
+
+            reply = QMessageBox.question(
+                self,
+                "Create Baseline",
+                "No baseline exists yet. Save this scan as your baseline?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+
+            if reply == QMessageBox.Yes:
+                save_baseline(self.current_report)
+                self.status.setText("Baseline created")
+                log_message("Baseline created from post-scan prompt")
+            else:
+                log_message("User declined baseline creation prompt")
+
+        except Exception:
+            import traceback
+            tb = traceback.format_exc()
+            log_message(f"Baseline prompt crash:\n{tb}")
+            QMessageBox.critical(self, "Crash", tb)
+
     def audit_finished(self, report):
         try:
             log_message("audit_finished called")
@@ -184,6 +231,7 @@ class MainWindow(QMainWindow):
 
             self.current_report = report
             self.current_report["behavior_diff"] = behavior
+            self.current_behavior = behavior
 
             save_last_report(self.current_report)
 
@@ -192,7 +240,10 @@ class MainWindow(QMainWindow):
 
             self.status.setText(f"Risk: {summary.get('overall_risk', 'unknown').upper()}")
             self.findings.load_findings(self.current_findings)
+            self.behavior_table.load_behavior(self.current_behavior)
             self.details.setPlainText(format_summary_text(summary, behavior_text))
+
+            self._maybe_prompt_to_create_baseline()
 
             log_message("UI update completed")
 
@@ -214,6 +265,7 @@ class MainWindow(QMainWindow):
 
             save_baseline(self.current_report)
             self.status.setText("Baseline saved")
+            self.baseline_prompt_shown_this_session = True
             log_message("Baseline saved successfully")
 
         except Exception:
@@ -236,6 +288,7 @@ class MainWindow(QMainWindow):
             diff = build_diff(baseline["report"], self.current_report)
             self.changes_table.load_changes(diff["changes"])
             log_message(f"Displayed {diff['count']} baseline changes")
+            self.tabs.setCurrentIndex(1)
 
         except Exception:
             import traceback

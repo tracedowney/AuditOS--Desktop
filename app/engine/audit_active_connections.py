@@ -1,7 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
+from ipaddress import ip_address
 from typing import Any, Dict
 
 import psutil
@@ -25,59 +26,79 @@ KNOWN_SERVICE_APPS = {
     "endpointprotection.exe",
 }
 
-LOCAL_NETWORK_PREFIXES = (
-    "127.",
-    "192.168.",
-    "10.",
-    "172.16.",
-)
+IGNORED_STATUSES = {
+    "TIME_WAIT",
+}
+
+LOCAL_NAMES = {
+    "system idle process",
+    "system",
+}
 
 
 def is_public(ip: str) -> bool:
-    return ip and not ip.startswith(LOCAL_NETWORK_PREFIXES)
+    try:
+        addr = ip_address(ip)
+    except ValueError:
+        return False
+
+    return not (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_multicast
+        or addr.is_reserved
+        or addr.is_unspecified
+    )
 
 
 def audit_active_connections() -> Dict[str, Any]:
-
     items = []
     findings = []
 
     for proc in psutil.process_iter(attrs=["pid", "name", "exe"]):
-
         try:
             conns = proc.net_connections(kind="inet")
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 
         for conn in conns:
-
             if not conn.raddr:
                 continue
 
             remote_ip = getattr(conn.raddr, "ip", "")
             remote_port = getattr(conn.raddr, "port", 0)
+            local_ip = getattr(conn.laddr, "ip", "")
+            local_port = getattr(conn.laddr, "port", 0)
 
+            status = conn.status or ""
             name = proc.info.get("name") or ""
             exe = proc.info.get("exe") or ""
+            low_name = name.lower()
+
+            if status in IGNORED_STATUSES:
+                continue
+
+            if not is_public(remote_ip):
+                continue
+
+            if low_name in LOCAL_NAMES:
+                continue
 
             item = {
                 "pid": proc.pid,
                 "name": name,
                 "exe": exe,
-                "local_addr": getattr(conn.laddr, "ip", ""),
-                "local_port": getattr(conn.laddr, "port", 0),
+                "local_addr": local_ip,
+                "local_port": local_port,
                 "remote_addr": remote_ip,
                 "remote_port": remote_port,
-                "status": conn.status,
+                "status": status,
             }
 
             items.append(item)
 
-            low_name = name.lower()
-
-            # suspicious path
-            if suspicious_path(exe) and is_public(remote_ip):
-
+            if suspicious_path(exe):
                 findings.append(
                     make_finding(
                         "active_connections",
@@ -88,9 +109,7 @@ def audit_active_connections() -> Dict[str, Any]:
                 )
                 continue
 
-            # script host making public connections
-            if low_name in SCRIPT_HOSTS and is_public(remote_ip):
-
+            if low_name in SCRIPT_HOSTS:
                 findings.append(
                     make_finding(
                         "active_connections",
@@ -101,11 +120,8 @@ def audit_active_connections() -> Dict[str, Any]:
                 )
                 continue
 
-            # known service applications
             if low_name in KNOWN_SERVICE_APPS:
-
-                if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS:
-
+                if remote_port not in COMMON_WEB_PORTS:
                     findings.append(
                         make_finding(
                             "active_connections",
@@ -116,9 +132,7 @@ def audit_active_connections() -> Dict[str, Any]:
                     )
                 continue
 
-            # generic unusual port
-            if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS and remote_port not in COMMON_DNS_PORTS:
-
+            if remote_port not in COMMON_WEB_PORTS and remote_port not in COMMON_DNS_PORTS:
                 findings.append(
                     make_finding(
                         "active_connections",
@@ -136,9 +150,7 @@ def audit_active_connections() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-
     ap = argparse.ArgumentParser()
     ap.add_argument("--pretty", action="store_true")
     args = ap.parse_args()
-
     print(json.dumps(audit_active_connections(), indent=2 if args.pretty else None))
