@@ -39,3 +39,5 @@ Thumbs.db
 
 # Misc logs
 *.log
+AuditOS_Windows_Beta_v*.zip
+_engine_import_inspection.csv
