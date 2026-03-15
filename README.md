@@ -70,7 +70,7 @@ Unzip the file and open `AuditOS.app`.
 
 If macOS blocks the app:
 
-Open the settings app for your mac, then access the security & privacy settings and selecty "open anyway" 
+Open the settings app for your mac, then access the security & privacy settings and select "open anyway". 
 Go back to downloads, click the app → **Open anyway**.
 
 ## Feedback
