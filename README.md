@@ -54,7 +54,7 @@ Download the version for your operating system from the latest pre-release.
 
 ### Windows
 
-Download `AuditOS_Windows_Beta_v0.1.zip` from Releases.
+Download AuditOS_Windows_Beta from Releases.
 
 Unzip the file and run `AuditOS.exe`.
 
@@ -64,13 +64,14 @@ Click **More info → Run anyway**.
 
 ### Mac
 
-Download `AuditOS_macOS_Beta_v0.1.zip` from Releases.
+Download AuditOS_macOS_Beta from Releases.
 
 Unzip the file and open `AuditOS.app`.
 
 If macOS blocks the app:
 
-Right click the app → **Open** → **Open**.
+Open the settings app for your mac, then access the security & privacy settings and selecty "open anyway" 
+Go back to downloads, click the app → **Open anyway**.
 
 ## Feedback
 
