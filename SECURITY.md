@@ -6,17 +6,19 @@ If you discover a security vulnerability, please report it privately using GitHu
 
 Steps:
 
-1. Navigate to the repository
-2. Click the **Security** tab
-3. Click **Report a vulnerability**
+  1. Navigate to the repository
+  2. Click the **Security** tab
+  3. Click **Report a vulnerability**
 
 Please do not disclose security issues publicly until they have been reviewed.
 
 Include:
 
-• Description of the issue
-• Steps to reproduce
-• Potential impact
+  • Description of the issue
+
+  • Steps to reproduce
+
+  • Potential impact
 
 We will review and respond as quickly as possible.
 
