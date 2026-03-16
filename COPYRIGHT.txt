@@ -1,6 +1,0 @@
-AuditOS
-Copyright (c) 2026 Trace Downey
-
-AuditOS is a system transparency and auditing tool.
-
-All rights reserved unless otherwise stated.
