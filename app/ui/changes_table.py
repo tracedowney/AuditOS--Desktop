@@ -9,6 +9,13 @@ class ChangesTable(QTableWidget):
 
     def load_changes(self, changes):
         self.setRowCount(0)
+        if not changes:
+            self.insertRow(0)
+            self.setItem(0, 0, QTableWidgetItem("info"))
+            self.setItem(0, 1, QTableWidgetItem("changes"))
+            self.setItem(0, 2, QTableWidgetItem("No changes detected"))
+            self.setItem(0, 3, QTableWidgetItem("Nothing new was detected compared with the selected comparison report."))
+            return
         for c in changes:
             row = self.rowCount()
             self.insertRow(row)

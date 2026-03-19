@@ -29,7 +29,7 @@ class SettingsDialog(QDialog):
         form = QFormLayout(self)
         form.addRow("Enable scheduled audits", self.schedule)
         form.addRow("Schedule frequency", self.frequency)
-        form.addRow("Enable AI explanations", self.ai)
+        form.addRow("Enable AI explanations (coming soon)", self.ai)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.save)
