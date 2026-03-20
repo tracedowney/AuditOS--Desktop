@@ -107,8 +107,19 @@ python3 -m pip install -r requirements.txt
 
 ### Run Locally
 
+From the repo root:
+
 ```bash
-python3 app/main.py
+cd app
+PYTHONPATH="$(pwd)/.." python3 main.py
+```
+
+On Windows PowerShell:
+
+```powershell
+cd app
+$env:PYTHONPATH = (Resolve-Path "..").Path
+python main.py
 ```
 
 ### Build Releases

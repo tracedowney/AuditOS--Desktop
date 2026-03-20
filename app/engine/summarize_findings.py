@@ -64,7 +64,7 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
         if is_macos:
             recs.append("Review LaunchAgents, LaunchDaemons, and launchctl jobs you do not recognize.")
         elif is_windows:
-            recs.append("Review persistence items that launch from AppData, Temp, Downloads, or script hosts.")
+            recs.append("Review startup items and scheduled tasks that launch from AppData, Temp, Downloads, or script hosts.")
         else:
             recs.append("Review startup and scheduled items that launch unexpectedly or from unusual paths.")
 

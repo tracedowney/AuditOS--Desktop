@@ -25,6 +25,17 @@ KNOWN_SERVICE_APPS = {
 }
 
 LOCAL_NETWORK_PREFIXES = ("127.", "192.168.", "10.", "172.16.", "::1", "fe80:")
+FRIENDLY_PROCESS_NAMES = {
+    "backgroundtaskhost.exe": "Windows background task host",
+    "chrome.exe": "Google Chrome",
+    "code.exe": "Visual Studio Code",
+    "firefox.exe": "Mozilla Firefox",
+    "msedge.exe": "Microsoft Edge",
+    "onedrive.exe": "Microsoft OneDrive",
+    "python.exe": "Python",
+    "svchost.exe": "Windows service host",
+    "system": "Windows System",
+}
 
 
 def make_finding(category: str, detail: str, score: int, evidence: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -47,6 +58,23 @@ def is_public(ip: str) -> bool:
     if not ip:
         return False
     return not ip.startswith(LOCAL_NETWORK_PREFIXES)
+
+
+def _friendly_name(name: str) -> str:
+    normalized = str(name).strip().lower()
+    return FRIENDLY_PROCESS_NAMES.get(normalized, name)
+
+
+def _target_label(ip: str, port: int) -> str:
+    if not ip:
+        return "an unknown address"
+    if not is_public(ip):
+        return f"a device or service on your local network ({ip})"
+    if port in COMMON_WEB_PORTS:
+        return f"a public web service ({ip})"
+    if port in COMMON_DNS_PORTS:
+        return f"a DNS service ({ip})"
+    return f"a public internet address ({ip})"
 
 
 def audit_active_connections() -> Dict[str, Any]:
@@ -89,26 +117,46 @@ def audit_active_connections() -> Dict[str, Any]:
 
                 if suspicious_path(exe) and is_public(remote_ip):
                     findings.append(
-                        make_finding("active_connections", f"Process in suspicious path has public connection: {name}", 8, item)
+                        make_finding(
+                            "active_connections",
+                            f"Review this internet connection: {_friendly_name(name)} is running from an unusual location and connected to {_target_label(remote_ip, remote_port)}",
+                            8,
+                            item,
+                        )
                     )
                     continue
 
                 if low_name in SCRIPT_HOSTS and is_public(remote_ip):
                     findings.append(
-                        make_finding("active_connections", f"Script/interpreter making public connection: {name}", 6, item)
+                        make_finding(
+                            "active_connections",
+                            f"Review this internet connection: {_friendly_name(name)} can run commands or scripts and connected to {_target_label(remote_ip, remote_port)}",
+                            6,
+                            item,
+                        )
                     )
                     continue
 
                 if agent_like:
                     if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS:
                         findings.append(
-                            make_finding("active_connections", f"Known service using custom port {remote_port}: {name}", 1, item)
+                            make_finding(
+                                "active_connections",
+                                f"Likely normal background service: {_friendly_name(name)} connected to {_target_label(remote_ip, remote_port)} using uncommon port {remote_port}",
+                                1,
+                                item,
+                            )
                         )
                     continue
 
                 if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS and remote_port not in COMMON_DNS_PORTS:
                     findings.append(
-                        make_finding("active_connections", f"Public connection on unusual port {remote_port}: {name}", 3, item)
+                        make_finding(
+                            "active_connections",
+                            f"Review this internet connection: {_friendly_name(name)} connected to {_target_label(remote_ip, remote_port)} on uncommon port {remote_port}",
+                            3,
+                            item,
+                        )
                     )
     except (psutil.AccessDenied, PermissionError) as exc:
         return {

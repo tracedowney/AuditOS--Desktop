@@ -17,6 +17,15 @@ MACOS_COMMON_SERVICES = {
     "cfnetworkagent",
 }
 
+FRIENDLY_PROCESS_NAMES = {
+    "lsass.exe": "Windows security service",
+    "services.exe": "Windows services manager",
+    "spoolsv.exe": "Windows print spooler",
+    "svchost.exe": "Windows service host",
+    "system": "Windows System",
+    "wininit.exe": "Windows startup service",
+}
+
 
 def make_finding(category: str, detail: str, score: int, evidence: Dict[str, Any] | None = None) -> Dict[str, Any]:
     severity = "high" if score >= 8 else "medium" if score >= 4 else "low"
@@ -32,6 +41,11 @@ def make_finding(category: str, detail: str, score: int, evidence: Dict[str, Any
 def suspicious_path(path: str) -> bool:
     p = (path or "").lower()
     return any(x in p for x in ["/tmp/", "/downloads/", "/desktop/", "/private/tmp/"])
+
+
+def _friendly_name(name: str) -> str:
+    normalized = str(name).strip().lower()
+    return FRIENDLY_PROCESS_NAMES.get(normalized, name)
 
 
 def audit_listening_ports() -> Dict[str, Any]:
@@ -90,7 +104,12 @@ def audit_listening_ports() -> Dict[str, Any]:
                         if finding_key not in seen_findings:
                             seen_findings.add(finding_key)
                             findings.append(
-                                make_finding("listening_ports", f"Windows service listening on dynamic RPC port {local_port}: {name}", 1, item)
+                                make_finding(
+                                    "listening_ports",
+                                    f"Likely normal Windows background service: {_friendly_name(name)} is waiting for internal Windows communication on port {local_port}",
+                                    1,
+                                    item,
+                                )
                             )
                         continue
 
@@ -110,7 +129,12 @@ def audit_listening_ports() -> Dict[str, Any]:
                 if finding_key not in seen_findings:
                     seen_findings.add(finding_key)
                     findings.append(
-                        make_finding("listening_ports", f"Unexpected listening port {local_port}: {name}", 3, item)
+                        make_finding(
+                            "listening_ports",
+                            f"Review this open port: {_friendly_name(name)} is waiting for incoming connections on port {local_port}",
+                            3,
+                            item,
+                        )
                     )
     except (psutil.AccessDenied, PermissionError) as exc:
         return {

@@ -16,11 +16,9 @@ from PySide6.QtWidgets import (
 )
 
 APP_DIR = Path(__file__).resolve().parent.parent
-LEGACY_DATA_DIR = APP_DIR / "data"
 DATA_DIR = ensure_user_data_dir()
 
 ACK_FILE = DATA_DIR / "terms_acknowledged.json"
-LEGACY_ACK_FILE = LEGACY_DATA_DIR / "terms_acknowledged.json"
 TERMS_FILE = APP_DIR.parent / "TERMS_OF_USE.txt"
 
 
@@ -38,13 +36,13 @@ PRIVACY = (
 EXTRA = (
     "AuditOS is an informational audit tool and does not automatically fix or remove system components.\n\n"
     "AuditOS performs audits only when you choose to run them.\n"
-    "Nothing runs in the background unless you explicitly enable it.\n\n"
+    "AuditOS does not run background monitoring on its own.\n\n"
     "Quick Audit is the faster default scan.\n"
     "Deep Audit adds more network visibility, but some platforms may limit what AuditOS can see unless the OS grants access."
 )
 
 def acknowledged() -> bool:
-    return ACK_FILE.exists() or LEGACY_ACK_FILE.exists()
+    return ACK_FILE.exists()
 
 
 def save_ack():

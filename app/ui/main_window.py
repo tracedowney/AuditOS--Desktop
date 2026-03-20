@@ -6,13 +6,15 @@ from pathlib import Path
 from PySide6.QtCore import QTimer, Slot
 from PySide6.QtWidgets import (
     QFileDialog,
-    QLabel,
+    QFrame,
     QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
     QTabWidget,
     QTextEdit,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -44,12 +46,10 @@ def _risk_color(risk: str) -> str:
 
 
 def format_summary_html(summary: dict, mode: str = "") -> str:
-    risk = str(summary.get("overall_risk", "unknown")).upper()
     counts = summary.get("counts", {})
     recs = summary.get("recommendations", [])
     limitations = summary.get("limitations", [])
     plain_summary = summary.get("plain_summary", [])
-    risk_color = _risk_color(risk)
 
     summary_lines = "".join(
         f"<li>{line}</li>" for line in plain_summary
@@ -76,12 +76,10 @@ def format_summary_html(summary: dict, mode: str = "") -> str:
 
     return f"""
     <div style="font-family: 'Segoe UI', sans-serif; color: #202124; line-height: 1.45;">
-      <div style="font-size: 28px; font-weight: 800; margin-bottom: 6px;">AuditOS Scorecard</div>
       {mode_label}
-      <div style="font-size: 24px; font-weight: 800; color: {risk_color}; margin-bottom: 18px;">Overall Risk: {risk}</div>
 
       <div style="display: block; margin-bottom: 18px;">
-        <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Summary Numbers</div>
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Total Findings</div>
         <div style="margin-left: 4px;">
           <div><b>High:</b> {counts.get('high', 0)}</div>
           <div><b>Medium:</b> {counts.get('medium', 0)}</div>
@@ -90,7 +88,7 @@ def format_summary_html(summary: dict, mode: str = "") -> str:
       </div>
 
       <div style="margin-bottom: 16px;">
-        <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">What Stands Out</div>
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Notable Findings</div>
         <ul style="margin: 0 0 0 18px;">{summary_lines}</ul>
       </div>
 
@@ -110,6 +108,94 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("AuditOS")
+        self.setStyleSheet(
+            """
+            QMainWindow {
+                background: #f6f7f4;
+            }
+            QWidget {
+                background: #f6f7f4;
+                color: #202124;
+                font-family: "Segoe UI", "SF Pro Text", sans-serif;
+                font-size: 14px;
+            }
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #6fbe63, stop:0.48 #4b9e46, stop:1 #2f6e2d);
+                border: 1px solid #2f6e2d;
+                border-bottom: 3px solid #204b20;
+                border-radius: 14px;
+                padding: 11px 18px 9px 18px;
+                min-height: 20px;
+                font-weight: 600;
+                color: #ffffff;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #7bcb6f, stop:0.48 #58ad52, stop:1 #367b34);
+                border-color: #2c642a;
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2f6e2d, stop:1 #4a9445);
+                padding-top: 12px;
+                padding-bottom: 8px;
+            }
+            QPushButton:disabled {
+                background: #c6d4c1;
+                color: #eef3eb;
+                border-color: #a9b7a3;
+            }
+            QTabWidget::pane {
+                border: 1px solid #d9e0d5;
+                border-radius: 14px;
+                background: #fbfcf9;
+                top: -1px;
+            }
+            QTabBar::tab {
+                background: #e9eee5;
+                border: 1px solid #d9e0d5;
+                border-bottom: none;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+                padding: 10px 16px;
+                margin-right: 6px;
+                color: #4f5b50;
+                font-weight: 600;
+            }
+            QTabBar::tab:selected {
+                background: #fbfcf9;
+                color: #1f2a1f;
+            }
+            QTabBar::tab:hover:!selected {
+                background: #f1f5ee;
+            }
+            QToolButton {
+                background: #eef5ea;
+                border: 1px solid #c9d8c3;
+                border-radius: 12px;
+                font-weight: 700;
+                color: #2f5d31;
+                padding: 2px 0;
+            }
+            QToolButton:hover {
+                background: #dfead8;
+            }
+            QTextEdit, QTableWidget {
+                background: #ffffff;
+                border: 1px solid #d9e0d5;
+                border-radius: 14px;
+            }
+            QHeaderView::section {
+                background: #f0f4ec;
+                color: #334033;
+                border: none;
+                border-bottom: 1px solid #d9e0d5;
+                padding: 8px 10px;
+                font-weight: 700;
+            }
+            """
+        )
 
         self.current_report = None
         self.current_findings = []
@@ -122,6 +208,10 @@ class MainWindow(QMainWindow):
         self.last_limitations_signature = ""
 
         self.status = QLabel("AuditOS - System Transparency Audit Tool")
+        self.scorecard_title = QLabel("AuditOS Scorecard")
+        self.scorecard_risk = QLabel("Overall Risk: UNKNOWN")
+        self.scorecard_title.setStyleSheet("font-size: 28px; font-weight: 800; color: #202124;")
+        self.scorecard_risk.setStyleSheet("font-size: 22px; font-weight: 800; color: #444444;")
 
         self.quick = QPushButton("Quick Audit")
         self.deep = QPushButton("Deep Audit")
@@ -149,19 +239,49 @@ class MainWindow(QMainWindow):
         self.details.setReadOnly(True)
         self.details.setMinimumHeight(250)
 
+        scorecard_header = QHBoxLayout()
+        scorecard_header.addWidget(self.scorecard_title)
+        scorecard_header.addStretch(1)
+        scorecard_header.addWidget(self.scorecard_risk)
+
+        self.changes_info_label = QLabel(
+            "Changes compares this scan to your saved baseline or previous scan so you can see what appeared, disappeared, or changed."
+        )
+        self.changes_state_label = QLabel(
+            "Run a scan, then AuditOS will compare it to your saved baseline or previous scan here."
+        )
+        self.behavior_info_label = QLabel(
+            "Behavior highlights internet activity, open ports, startup items, scheduled tasks, and extensions. Startup items and scheduled tasks are programs or jobs that can run automatically."
+        )
+        for label in [self.changes_info_label, self.behavior_info_label, self.changes_state_label]:
+            label.setWordWrap(True)
+            label.setVisible(False)
+            label.setStyleSheet("color: #5f6368; padding: 6px 8px;")
+        self.changes_info_label.setVisible(True)
+        self.changes_state_label.setVisible(True)
+
+        self.changes_info_btn = self._make_info_button(self.changes_info_label)
+        self.behavior_info_btn = self._make_info_button(self.behavior_info_label)
+
         self.tabs = QTabWidget()
 
         tab1 = QWidget()
         l1 = QVBoxLayout(tab1)
+        l1.addLayout(scorecard_header)
         l1.addWidget(self.details)
         l1.addWidget(self.findings)
 
         tab2 = QWidget()
         l2 = QVBoxLayout(tab2)
+        l2.addLayout(self._build_info_row("About Changes", self.changes_info_btn))
+        l2.addWidget(self.changes_info_label)
+        l2.addWidget(self.changes_state_label)
         l2.addWidget(self.changes_table)
 
         tab3 = QWidget()
         l3 = QVBoxLayout(tab3)
+        l3.addLayout(self._build_info_row("About Behavior", self.behavior_info_btn))
+        l3.addWidget(self.behavior_info_label)
         l3.addWidget(self.behavior_table)
 
         self.tabs.addTab(tab1, "Findings")
@@ -178,6 +298,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
         self.findings.itemSelectionChanged.connect(self.on_finding_selected)
+        self.changes_table.load_changes([])
 
         QTimer.singleShot(0, lambda: show_first_run_notice(self))
 
@@ -220,6 +341,23 @@ class MainWindow(QMainWindow):
     def update_progress_text(self, message: str):
         self.details.setPlainText(message)
 
+    def _make_info_button(self, target: QLabel) -> QToolButton:
+        button = QToolButton()
+        button.setText("i")
+        button.setToolTip("Show more information")
+        button.setFixedWidth(24)
+        button.clicked.connect(lambda: target.setVisible(not target.isVisible()))
+        return button
+
+    def _build_info_row(self, title: str, button: QToolButton) -> QHBoxLayout:
+        row = QHBoxLayout()
+        label = QLabel(title)
+        label.setStyleSheet("font-weight: 700; color: #202124;")
+        row.addWidget(label)
+        row.addWidget(button)
+        row.addStretch(1)
+        return row
+
     def maybe_prompt_for_baseline(self):
         baseline = load_baseline()
         if baseline:
@@ -261,17 +399,23 @@ class MainWindow(QMainWindow):
             summary = report.get("summary", {})
             self.current_findings = summary.get("top_findings", [])
             limitations = summary.get("limitations", [])
+            overall_risk = str(summary.get("overall_risk", "unknown")).upper()
 
-            status_text = f"Risk: {summary.get('overall_risk', 'unknown').upper()}"
+            status_text = f"Risk: {overall_risk}"
             if limitations:
                 status_text += f" | Limited visibility: {len(limitations)}"
 
             self.status.setText(status_text)
+            self.scorecard_risk.setText(f"Overall Risk: {overall_risk}")
+            self.scorecard_risk.setStyleSheet(
+                f"font-size: 22px; font-weight: 800; color: {_risk_color(overall_risk)};"
+            )
             self.findings.load_findings(self.current_findings)
             self.behavior_table.load_behavior(self.current_behavior)
             mode = str(report.get("meta", {}).get("mode", ""))
             self.details.setHtml(format_summary_html(summary, mode))
             self.maybe_explain_limitations(limitations)
+            self.refresh_changes_preview()
 
             self.maybe_prompt_for_baseline()
 
@@ -347,8 +491,16 @@ class MainWindow(QMainWindow):
             self.changes_table.load_changes(diff["changes"])
             self.tabs.setCurrentIndex(1)
             if diff["count"] == 0:
+                self.changes_info_label.setText(
+                    f"AuditOS compared this scan with your {comparison_label} and did not find any new changes to call out."
+                )
+                self.changes_info_label.setVisible(True)
                 self.status.setText(f"No changes vs {comparison_label}")
             else:
+                self.changes_info_label.setText(
+                    f"AuditOS found {diff['count']} change(s) compared with your {comparison_label}. Review the table below for what changed and why it matters."
+                )
+                self.changes_info_label.setVisible(True)
                 self.status.setText(f"{diff['count']} change(s) vs {comparison_label}")
             log_message(f"Displayed {diff['count']} changes against {comparison_label}")
 
@@ -366,6 +518,51 @@ class MainWindow(QMainWindow):
         self.status.setText(
             f"Selected finding: {str(finding.get('severity', '')).upper()} | {finding.get('detail', '')}"
         )
+
+    def refresh_changes_preview(self):
+        if not self.current_report:
+            self.changes_info_label.setText(
+                "Run a scan, then AuditOS will compare it to your saved baseline or previous scan here."
+            )
+            self.changes_state_label.setText("No scan has been compared yet.")
+            self.changes_state_label.setVisible(True)
+            self.changes_table.load_changes([])
+            return
+
+        baseline = load_baseline()
+        comparison_report = None
+        comparison_label = ""
+        if baseline and isinstance(baseline.get("report"), dict):
+            comparison_report = baseline["report"]
+            comparison_label = "saved baseline"
+        elif self.previous_report:
+            comparison_report = self.previous_report
+            comparison_label = "previous scan"
+
+        if not comparison_report:
+            self.changes_info_label.setText(
+                "Save a baseline or run another scan and AuditOS will show what changed here."
+            )
+            self.changes_state_label.setText(
+                "No comparison source is available yet. Save a baseline or run another scan."
+            )
+            self.changes_state_label.setVisible(True)
+            self.changes_table.load_changes([])
+            return
+
+        diff = build_diff(comparison_report, self.current_report)
+        self.changes_table.load_changes(diff["changes"])
+        if diff["count"] == 0:
+            self.changes_info_label.setText(
+                f"AuditOS compared this scan with your {comparison_label} and did not find any new changes to call out."
+            )
+            self.changes_state_label.setText("No new changes were detected.")
+            self.changes_state_label.setVisible(True)
+        else:
+            self.changes_info_label.setText(
+                f"AuditOS found {diff['count']} change(s) compared with your {comparison_label}. Review the table below for what changed and why it matters."
+            )
+            self.changes_state_label.setVisible(False)
 
     def export_report(self):
         if not self.current_report:

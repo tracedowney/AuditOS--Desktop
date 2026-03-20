@@ -1,7 +1,6 @@
 ﻿from PySide6.QtWidgets import (
     QDialog,
     QCheckBox,
-    QComboBox,
     QFormLayout,
     QDialogButtonBox
 )
@@ -16,19 +15,10 @@ class SettingsDialog(QDialog):
 
         settings = load_settings()
 
-        self.schedule = QCheckBox()
-        self.schedule.setChecked(settings["schedule_enabled"])
-
-        self.frequency = QComboBox()
-        self.frequency.addItems(["daily", "weekly", "monthly"])
-        self.frequency.setCurrentText(settings["schedule_frequency"])
-
         self.ai = QCheckBox()
         self.ai.setChecked(settings["ai_enabled"])
 
         form = QFormLayout(self)
-        form.addRow("Enable scheduled audits", self.schedule)
-        form.addRow("Schedule frequency", self.frequency)
         form.addRow("Enable AI explanations (coming soon)", self.ai)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -38,9 +28,6 @@ class SettingsDialog(QDialog):
 
     def save(self):
         save_settings({
-            "schedule_enabled": self.schedule.isChecked(),
-            "schedule_frequency": self.frequency.currentText(),
-            "schedule_mode": "quick",
             "ai_enabled": self.ai.isChecked(),
             "license_tier": "free",
         })

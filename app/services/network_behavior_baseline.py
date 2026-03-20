@@ -12,6 +12,53 @@ DATA_DIR = ensure_user_data_dir()
 HISTORY_DIR = DATA_DIR / "behavior_history"
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 LEGACY_HISTORY_DIR = LEGACY_DATA_DIR / "behavior_history"
+NOISY_WINDOWS_PROCESSES = {
+    "backgroundtaskhost.exe",
+    "csrss.exe",
+    "dwm.exe",
+    "lsass.exe",
+    "prl_tools_service.exe",
+    "services.exe",
+    "smss.exe",
+    "spoolsv.exe",
+    "svchost.exe",
+    "system",
+    "wininit.exe",
+}
+NOISY_WINDOWS_PORTS = {135, 139, 445, 5040}
+
+
+def _friendly_program_name(name: str) -> str:
+    normalized = str(name).strip()
+    known = {
+        "chrome.exe": "Google Chrome",
+        "firefox.exe": "Mozilla Firefox",
+        "msedge.exe": "Microsoft Edge",
+        "safari": "Safari",
+        "python.exe": "Python",
+        "code.exe": "Visual Studio Code",
+        "teams.exe": "Microsoft Teams",
+        "onedrive.exe": "Microsoft OneDrive",
+        "system": "Windows System",
+    }
+    return known.get(normalized.lower(), normalized)
+
+
+def _should_hide_connection(name: str, remote_port: int, remote_addr: str) -> bool:
+    normalized = str(name).strip().lower()
+    if normalized in NOISY_WINDOWS_PROCESSES:
+        return True
+    addr = str(remote_addr).strip()
+    return not addr or addr in {"0.0.0.0", "::", "127.0.0.1", "::1"}
+
+
+def _should_hide_listening(name: str, port: int) -> bool:
+    normalized = str(name).strip().lower()
+    if normalized in NOISY_WINDOWS_PROCESSES:
+        return True
+    if int(port) in NOISY_WINDOWS_PORTS:
+        return True
+    return 49152 <= int(port) <= 65535
 
 
 def _connection_keys(report: Dict[str, Any]) -> Set[Tuple[str, int, str]]:
@@ -112,10 +159,29 @@ def diff_behavior(report: Dict[str, Any], previous: Dict[str, Any] | None) -> Di
     old_startup = set(previous.get("startup_items", [])) if previous else set()
     old_tasks = set(previous.get("scheduled_tasks", [])) if previous else set()
 
+    new_connections = [
+        entry for entry in sorted(list(current_connections - old_connections))
+        if not _should_hide_connection(entry[0], int(entry[1]), str(entry[2]))
+    ]
+    new_listening = [
+        entry for entry in sorted(list(current_listening - old_listening))
+        if not _should_hide_listening(entry[0], int(entry[1]))
+    ]
+    current_connections_visible = [
+        entry for entry in sorted(list(current_connections))
+        if not _should_hide_connection(entry[0], int(entry[1]), str(entry[2]))
+    ]
+    current_listening_visible = [
+        entry for entry in sorted(list(current_listening))
+        if not _should_hide_listening(entry[0], int(entry[1]))
+    ]
+
     return {
         "has_previous": previous is not None,
-        "new_connections": sorted(list(current_connections - old_connections)),
-        "new_listening_ports": sorted(list(current_listening - old_listening)),
+        "new_connections": new_connections,
+        "new_listening_ports": new_listening,
+        "current_connections": current_connections_visible,
+        "current_listening_ports": current_listening_visible,
         "new_extensions": sorted(list(current_extensions - old_extensions)),
         "new_dns_servers": sorted(list(current_dns - old_dns)),
         "new_startup_items": sorted(list(current_startup - old_startup)),
@@ -134,6 +200,7 @@ def format_behavior_diff(diff: Dict[str, Any]) -> str:
     new_tasks = diff.get("new_scheduled_tasks", [])
 
     lines.append("Behavior Since Last Scan:")
+    lines.append("- This section is meant to show new app, network, startup, or extension activity compared with the last scan.")
 
     if not any([new_connections, new_listening, new_extensions, new_dns, new_startup, new_tasks]):
         if has_previous:
@@ -143,14 +210,14 @@ def format_behavior_diff(diff: Dict[str, Any]) -> str:
         return "\n".join(lines)
 
     if new_connections:
-        lines.append("- New public/process connections:")
+        lines.append("- New app internet activity:")
         for name, port, addr in new_connections[:10]:
-            lines.append(f"  • {name} -> {addr}:{port}")
+            lines.append(f"  • {_friendly_program_name(name)} connected to {addr} on port {port}")
 
     if new_listening:
-        lines.append("- New listening ports:")
+        lines.append("- New apps waiting for incoming connections:")
         for name, port in new_listening[:10]:
-            lines.append(f"  • {name} listening on {port}")
+            lines.append(f"  • {_friendly_program_name(name)} was listening on port {port}")
 
     if new_extensions:
         lines.append("- New browser extensions observed:")

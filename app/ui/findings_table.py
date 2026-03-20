@@ -1,4 +1,5 @@
-﻿from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
+﻿from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem
 
 
 AREA_LABELS = {
@@ -20,7 +21,12 @@ class FindingsTable(QTableWidget):
     def __init__(self):
         super().__init__(0, 3)
         self.setHorizontalHeaderLabels(["Priority", "Area", "What AuditOS Found"])
-        self.horizontalHeader().setStretchLastSection(True)
+        self.verticalHeader().setVisible(False)
+        header = self.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
 
     def load_findings(self, findings):
         self.setRowCount(0)
