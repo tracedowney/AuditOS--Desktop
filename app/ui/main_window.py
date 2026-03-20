@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Slot
 from PySide6.QtWidgets import (
     QFileDialog,
     QLabel,
@@ -35,59 +35,73 @@ from services.network_behavior_baseline import (
 )
 
 
-def format_summary_text(summary: dict, behavior_text: str = "") -> str:
+def _risk_color(risk: str) -> str:
+    return {
+        "LOW": "#188038",
+        "MEDIUM": "#b26a00",
+        "HIGH": "#b00020",
+    }.get(risk, "#444444")
+
+
+def format_summary_html(summary: dict, mode: str = "") -> str:
     risk = str(summary.get("overall_risk", "unknown")).upper()
     counts = summary.get("counts", {})
     recs = summary.get("recommendations", [])
-    findings = summary.get("top_findings", [])
     limitations = summary.get("limitations", [])
     plain_summary = summary.get("plain_summary", [])
+    risk_color = _risk_color(risk)
 
-    lines = [
-        f"Overall Risk: {risk}",
-        "",
-    ]
+    summary_lines = "".join(
+        f"<li>{line}</li>" for line in plain_summary
+    ) or "<li>AuditOS is still gathering enough context to describe this scan.</li>"
 
-    if plain_summary:
-        lines.append("What This Means:")
-        for line in plain_summary:
-            lines.append(f"- {line}")
-        lines.append("")
+    recommendation_lines = "".join(
+        f"<li>{rec}</li>" for rec in recs
+    ) or "<li>No immediate recommendations from this scan.</li>"
 
-    lines.extend([
-        f"High findings:   {counts.get('high', 0)}",
-        f"Medium findings: {counts.get('medium', 0)}",
-        f"Low findings:    {counts.get('low', 0)}",
-        "",
-        "Top Findings:",
-    ])
-
-    if findings:
-        for f in findings[:10]:
-            lines.append(f"- [{str(f.get('severity', '')).upper()}] {f.get('detail', '')}")
-    else:
-        lines.append("- No findings")
-
-    lines.append("")
-    lines.append("Recommendations:")
-
-    if recs:
-        for r in recs:
-            lines.append(f"- {r}")
-    else:
-        lines.append("- No recommendations")
-
+    limitation_block = ""
     if limitations:
-        lines.append("")
-        lines.append("Environment Notes:")
-        for note in limitations:
-            lines.append(f"- {note}")
+        limitation_items = "".join(f"<li>{note}</li>" for note in limitations)
+        limitation_block = (
+            "<div style='margin-top:16px;'>"
+            "<div style='font-size:15px;font-weight:700;color:#5f6368;margin-bottom:6px;'>Environment Notes</div>"
+            f"<ul style='margin:0 0 0 18px;'>{limitation_items}</ul>"
+            "</div>"
+        )
 
-    if behavior_text:
-        lines.append("")
-        lines.append(behavior_text)
+    mode_label = ""
+    if mode:
+        pretty_mode = "Quick Audit" if str(mode).lower() == "quick" else "Deep Audit" if str(mode).lower() == "deep" else str(mode)
+        mode_label = f"<div style='font-size: 16px; font-weight: 700; color: #5f6368; margin-bottom: 10px;'>{pretty_mode}</div>"
 
-    return "\n".join(lines)
+    return f"""
+    <div style="font-family: 'Segoe UI', sans-serif; color: #202124; line-height: 1.45;">
+      <div style="font-size: 28px; font-weight: 800; margin-bottom: 6px;">AuditOS Scorecard</div>
+      {mode_label}
+      <div style="font-size: 24px; font-weight: 800; color: {risk_color}; margin-bottom: 18px;">Overall Risk: {risk}</div>
+
+      <div style="display: block; margin-bottom: 18px;">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Summary Numbers</div>
+        <div style="margin-left: 4px;">
+          <div><b>High:</b> {counts.get('high', 0)}</div>
+          <div><b>Medium:</b> {counts.get('medium', 0)}</div>
+          <div><b>Low:</b> {counts.get('low', 0)}</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">What Stands Out</div>
+        <ul style="margin: 0 0 0 18px;">{summary_lines}</ul>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Recommended Next Steps</div>
+        <ul style="margin: 0 0 0 18px;">{recommendation_lines}</ul>
+      </div>
+
+      {limitation_block}
+    </div>
+    """
 
 
 class MainWindow(QMainWindow):
@@ -133,13 +147,14 @@ class MainWindow(QMainWindow):
 
         self.details = QTextEdit()
         self.details.setReadOnly(True)
+        self.details.setMinimumHeight(250)
 
         self.tabs = QTabWidget()
 
         tab1 = QWidget()
         l1 = QVBoxLayout(tab1)
-        l1.addWidget(self.findings)
         l1.addWidget(self.details)
+        l1.addWidget(self.findings)
 
         tab2 = QWidget()
         l2 = QVBoxLayout(tab2)
@@ -180,7 +195,7 @@ class MainWindow(QMainWindow):
 
         self.worker.finished.connect(self.audit_finished)
         self.worker.failed.connect(self.audit_failed)
-        self.worker.progress.connect(self.details.setPlainText)
+        self.worker.progress.connect(self.update_progress_text)
 
         self.worker.finished.connect(self.thread.quit)
         self.worker.failed.connect(self.thread.quit)
@@ -200,6 +215,10 @@ class MainWindow(QMainWindow):
             self.thread = None
 
         self.audit_running = False
+
+    @Slot(str)
+    def update_progress_text(self, message: str):
+        self.details.setPlainText(message)
 
     def maybe_prompt_for_baseline(self):
         baseline = load_baseline()
@@ -250,7 +269,8 @@ class MainWindow(QMainWindow):
             self.status.setText(status_text)
             self.findings.load_findings(self.current_findings)
             self.behavior_table.load_behavior(self.current_behavior)
-            self.details.setPlainText(format_summary_text(summary, behavior_text))
+            mode = str(report.get("meta", {}).get("mode", ""))
+            self.details.setHtml(format_summary_html(summary, mode))
             self.maybe_explain_limitations(limitations)
 
             self.maybe_prompt_for_baseline()
@@ -342,8 +362,10 @@ class MainWindow(QMainWindow):
         row = self.findings.currentRow()
         if row < 0 or row >= len(self.current_findings):
             return
-
-        self.details.setPlainText(json.dumps(self.current_findings[row], indent=2))
+        finding = self.current_findings[row]
+        self.status.setText(
+            f"Selected finding: {str(finding.get('severity', '')).upper()} | {finding.get('detail', '')}"
+        )
 
     def export_report(self):
         if not self.current_report:

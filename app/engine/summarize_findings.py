@@ -3,14 +3,26 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 
+def _finding_key(finding: Dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(finding.get("category", "")).strip().lower(),
+        str(finding.get("detail", "")).strip(),
+        str(finding.get("severity", "low")).strip().lower(),
+    )
+
+
 def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     all_findings: List[Dict[str, Any]] = []
     limitations: List[str] = []
+    seen_findings: set[tuple[str, str, str]] = set()
 
     for _, value in report.items():
         if isinstance(value, dict) and isinstance(value.get("findings"), list):
-            all_findings.extend(value["findings"])
             for finding in value["findings"]:
+                key = _finding_key(finding)
+                if key not in seen_findings:
+                    all_findings.append(finding)
+                    seen_findings.add(key)
                 detail = str(finding.get("detail", ""))
                 if detail.startswith("Limited visibility:") and detail not in limitations:
                     limitations.append(detail)
