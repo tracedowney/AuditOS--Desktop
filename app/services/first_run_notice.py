@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
+from services.app_paths import ensure_user_data_dir
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -15,10 +16,11 @@ from PySide6.QtWidgets import (
 )
 
 APP_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = APP_DIR / "data"
-DATA_DIR.mkdir(exist_ok=True)
+LEGACY_DATA_DIR = APP_DIR / "data"
+DATA_DIR = ensure_user_data_dir()
 
 ACK_FILE = DATA_DIR / "terms_acknowledged.json"
+LEGACY_ACK_FILE = LEGACY_DATA_DIR / "terms_acknowledged.json"
 TERMS_FILE = APP_DIR.parent / "TERMS_OF_USE.txt"
 
 
@@ -42,7 +44,7 @@ EXTRA = (
 )
 
 def acknowledged() -> bool:
-    return ACK_FILE.exists()
+    return ACK_FILE.exists() or LEGACY_ACK_FILE.exists()
 
 
 def save_ack():

@@ -3,10 +3,10 @@ import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
+from services.app_paths import ensure_user_data_dir
 
 APP_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = APP_DIR / "data"
-DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR = ensure_user_data_dir()
 
 CRASH_LOG_PATH = DATA_DIR / "crash.log"
 

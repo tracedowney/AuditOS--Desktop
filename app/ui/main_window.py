@@ -41,16 +41,26 @@ def format_summary_text(summary: dict, behavior_text: str = "") -> str:
     recs = summary.get("recommendations", [])
     findings = summary.get("top_findings", [])
     limitations = summary.get("limitations", [])
+    plain_summary = summary.get("plain_summary", [])
 
     lines = [
         f"Overall Risk: {risk}",
         "",
+    ]
+
+    if plain_summary:
+        lines.append("What This Means:")
+        for line in plain_summary:
+            lines.append(f"- {line}")
+        lines.append("")
+
+    lines.extend([
         f"High findings:   {counts.get('high', 0)}",
         f"Medium findings: {counts.get('medium', 0)}",
         f"Low findings:    {counts.get('low', 0)}",
         "",
         "Top Findings:",
-    ]
+    ])
 
     if findings:
         for f in findings[:10]:

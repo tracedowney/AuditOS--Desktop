@@ -4,12 +4,14 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
-
+from services.app_paths import ensure_user_data_dir
 
 APP_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = APP_DIR / "data"
+LEGACY_DATA_DIR = APP_DIR / "data"
+DATA_DIR = ensure_user_data_dir()
 HISTORY_DIR = DATA_DIR / "behavior_history"
-HISTORY_DIR.mkdir(exist_ok=True)
+HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+LEGACY_HISTORY_DIR = LEGACY_DATA_DIR / "behavior_history"
 
 
 def _connection_keys(report: Dict[str, Any]) -> Set[Tuple[str, int, str]]:
@@ -88,6 +90,8 @@ def save_snapshot(report: Dict[str, Any]) -> Path:
 
 def load_latest_snapshot() -> Dict[str, Any] | None:
     files = sorted(HISTORY_DIR.glob("*.json"))
+    if not files and LEGACY_HISTORY_DIR.exists():
+        files = sorted(LEGACY_HISTORY_DIR.glob("*.json"))
     if not files:
         return None
     return json.loads(files[-1].read_text(encoding="utf-8"))

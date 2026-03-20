@@ -33,6 +33,7 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     is_linux = "linux" in host_os
 
     recs = []
+    plain_summary = []
 
     if any(f["category"] == "proxy" for f in all_findings):
         if is_macos:
@@ -67,6 +68,28 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     if limitations and is_macos:
         recs.append("If Deep Audit shows limited visibility on macOS, review system privacy permissions and rerun the scan.")
 
+    if not all_findings:
+        plain_summary.append("AuditOS did not see any findings that it considers notable in this scan.")
+    else:
+        if counts["high"]:
+            plain_summary.append(f"AuditOS found {counts['high']} high-priority item(s) that deserve attention first.")
+        elif counts["medium"]:
+            plain_summary.append(f"AuditOS found {counts['medium']} medium-priority item(s) worth reviewing.")
+        else:
+            plain_summary.append("AuditOS only found low-priority items in this scan.")
+
+        if any(f["category"] == "browser_extension" for f in all_findings):
+            plain_summary.append("At least one browser extension has permissions or site access that may be broader than expected.")
+
+        if any(f["category"] in {"startup_items", "scheduled_tasks"} for f in all_findings):
+            plain_summary.append("AuditOS found apps or jobs that can start automatically with the system.")
+
+        if any(f["category"] in {"active_connections", "listening_ports"} for f in all_findings):
+            plain_summary.append("Deep Audit saw live network activity or open ports that you may want to recognize and verify.")
+
+    if limitations:
+        plain_summary.append("Some parts of the scan had reduced visibility because the operating system limited access.")
+
     return {
         "component": "summary",
         "overall_risk": overall,
@@ -75,4 +98,5 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
         "top_findings": all_findings[:25],
         "recommendations": recs,
         "limitations": limitations,
+        "plain_summary": plain_summary,
     }
