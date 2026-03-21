@@ -4,10 +4,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
+from services.app_paths import ensure_user_data_dir
 
 APP_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = APP_DIR / "data"
-DATA_DIR.mkdir(exist_ok=True)
+LEGACY_DATA_DIR = APP_DIR / "data"
+DATA_DIR = ensure_user_data_dir()
 
 BASELINE_PATH = DATA_DIR / "baseline.json"
 LAST_REPORT_PATH = DATA_DIR / "last_report.json"

@@ -1,42 +1,44 @@
-# Contributing to AuditOS
+# Contributing
 
-Thank you for your interest in contributing.
+Thanks for helping improve AuditOS.
 
-## How to contribute
+## Before You Start
 
-1. Fork the repository
-2. Create a new branch
-3. Make your changes
-4. Submit a pull request
+- Open an issue or start a discussion for larger changes
+- Keep fixes focused when possible
+- Avoid bundling unrelated cleanup into the same change
 
-Please include clear descriptions of:
+## Local Setup
 
-• What problem the change solves
-• What files were modified
-• How the change was tested
+```bash
+python3 -m pip install -r requirements.txt
+python3 app/main.py
+```
 
----
+## Contribution Priorities
 
-## Code Guidelines
+- stability and crash fixes
+- cross-platform audit accuracy
+- clearer reporting and lower-noise findings
+- packaging and release reliability
+- documentation that helps testers and contributors
 
-• Keep code simple and readable
-• Avoid unnecessary dependencies
-• Comment complex logic
-• Test before submitting
+## Pull Request Guidelines
 
----
+- describe the user-facing problem
+- explain the approach you took
+- note any platform-specific behavior
+- include validation steps you ran
+- include screenshots when UI changes are involved
 
-## Feature Requests
+## Testing Notes
 
-If you want to propose a feature, open an issue first so it can be discussed.
+AuditOS has platform-specific behavior. When possible, note:
 
----
+- OS and version tested
+- whether you ran Quick Audit or Deep Audit
+- any permissions required for the result you observed
 
-## Bug Reports
+## Scope
 
-Please include:
-
-• Steps to reproduce
-• Expected behavior
-• Actual behavior
-• Screenshots if possible
+AuditOS is an informational audit tool. Contributions should preserve the principle that the app informs the user rather than silently making system changes.

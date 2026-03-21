@@ -1,31 +1,37 @@
 from __future__ import annotations
 
-import argparse
-import json
 from typing import Any, Dict, List
+
+
+def _finding_key(finding: Dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(finding.get("category", "")).strip().lower(),
+        str(finding.get("detail", "")).strip(),
+        str(finding.get("severity", "low")).strip().lower(),
+    )
 
 
 def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     all_findings: List[Dict[str, Any]] = []
-    component_errors: List[str] = []
+    limitations: List[str] = []
+    seen_findings: set[tuple[str, str, str]] = set()
 
-    for key, value in report.items():
-        if key in {"summary", "meta"}:
-            continue
-
-        if isinstance(value, dict):
-            if isinstance(value.get("findings"), list):
-                all_findings.extend(value["findings"])
-
-            if value.get("status") == "error":
-                component_errors.append(key)
+    for _, value in report.items():
+        if isinstance(value, dict) and isinstance(value.get("findings"), list):
+            for finding in value["findings"]:
+                key = _finding_key(finding)
+                if key not in seen_findings:
+                    all_findings.append(finding)
+                    seen_findings.add(key)
+                detail = str(finding.get("detail", ""))
+                if detail.startswith("Limited visibility:") and detail not in limitations:
+                    limitations.append(detail)
 
     all_findings.sort(key=lambda x: x.get("score", 0), reverse=True)
 
     counts = {"high": 0, "medium": 0, "low": 0}
-    for finding in all_findings:
-        sev = finding.get("severity", "low")
-        counts[sev] = counts.get(sev, 0) + 1
+    for f in all_findings:
+        counts[f.get("severity", "low")] = counts.get(f.get("severity", "low"), 0) + 1
 
     overall = "low"
     if counts["high"] >= 2:
@@ -33,42 +39,76 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     elif counts["high"] == 1 or counts["medium"] >= 8:
         overall = "medium"
 
-    if component_errors and overall == "low":
-        overall = "medium"
+    host_os = str(report.get("host_os", "")).lower()
+    is_macos = "darwin" in host_os or "mac" in host_os
+    is_windows = "windows" in host_os
+    is_linux = "linux" in host_os
 
-    recommendations: List[str] = []
+    recs = []
+    plain_summary = []
 
-    if any(f.get("category") == "proxy" for f in all_findings):
-        recommendations.append("Review proxy and PAC settings in Windows and the browser.")
-    if any(f.get("category") in {"browser_extension", "permission", "host_access"} for f in all_findings):
-        recommendations.append("Review browser extensions with broad access, sensitive permissions, or non-standard update behavior.")
-    if any(f.get("category") in {"startup_items", "scheduled_tasks"} for f in all_findings):
-        recommendations.append("Review persistence items that launch from AppData, Temp, Downloads, or script hosts.")
-    if any(f.get("category") == "certificates" for f in all_findings):
-        recommendations.append("Review user and machine root certificates for anything you do not recognize.")
-    if any(f.get("category") in {"active_connections", "listening_ports"} for f in all_findings):
-        recommendations.append("Review processes with unusual public connections or listening ports, especially from user-writeable paths.")
-    if component_errors:
-        recommendations.append("One or more audit components failed. Review the component error details and traceback fields in the report.")
+    if any(f["category"] == "proxy" for f in all_findings):
+        if is_macos:
+            recs.append("Review proxy and PAC settings in macOS Network settings.")
+        elif is_windows:
+            recs.append("Review proxy and PAC settings in Windows and the browser.")
+        elif is_linux:
+            recs.append("Review proxy settings in your desktop/network configuration.")
+        else:
+            recs.append("Review proxy and PAC settings on this system.")
+
+    if any(f["category"] == "browser_extension" for f in all_findings):
+        recs.append("Review browser extensions with broad host access or sensitive permissions.")
+
+    if any(f["category"] in {"startup_items", "scheduled_tasks"} for f in all_findings):
+        if is_macos:
+            recs.append("Review LaunchAgents, LaunchDaemons, and launchctl jobs you do not recognize.")
+        elif is_windows:
+            recs.append("Review startup items and scheduled tasks that launch from AppData, Temp, Downloads, or script hosts.")
+        else:
+            recs.append("Review startup and scheduled items that launch unexpectedly or from unusual paths.")
+
+    if any(f["category"] == "certificates" for f in all_findings):
+        if is_macos:
+            recs.append("Review trusted certificates in Keychain Access if you suspect unexpected trust changes.")
+        else:
+            recs.append("Review root certificates for anything you do not recognize.")
+
+    if any(f["category"] in {"active_connections", "listening_ports"} for f in all_findings):
+        recs.append("Review processes with unusual public connections or listening ports, especially from user-writeable paths.")
+
+    if limitations and is_macos:
+        recs.append("If Deep Audit shows limited visibility on macOS, review system privacy permissions and rerun the scan.")
+
+    if not all_findings:
+        plain_summary.append("AuditOS did not see any findings that it considers notable in this scan.")
+    else:
+        if counts["high"]:
+            plain_summary.append(f"AuditOS found {counts['high']} high-priority item(s) that deserve attention first.")
+        elif counts["medium"]:
+            plain_summary.append(f"AuditOS found {counts['medium']} medium-priority item(s) worth reviewing.")
+        else:
+            plain_summary.append("AuditOS only found low-priority items in this scan.")
+
+        if any(f["category"] == "browser_extension" for f in all_findings):
+            plain_summary.append("At least one browser extension has permissions or site access that may be broader than expected.")
+
+        if any(f["category"] in {"startup_items", "scheduled_tasks"} for f in all_findings):
+            plain_summary.append("AuditOS found apps or jobs that can start automatically with the system.")
+
+        if any(f["category"] in {"active_connections", "listening_ports"} for f in all_findings):
+            plain_summary.append("Deep Audit saw live network activity or open ports that you may want to recognize and verify.")
+
+    if limitations:
+        plain_summary.append("Some parts of the scan had reduced visibility because the operating system limited access.")
 
     return {
         "component": "summary",
         "overall_risk": overall,
         "counts": counts,
         "total_findings": len(all_findings),
-        "component_errors": component_errors,
         "top_findings": all_findings[:25],
-        "recommendations": recommendations,
+        "recommendations": recs,
+        "limitations": limitations,
+        "plain_summary": plain_summary,
     }
-
-
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("report_json")
-    ap.add_argument("--pretty", action="store_true")
-    args = ap.parse_args()
-
-    with open(args.report_json, "r", encoding="utf-8") as f:
-        report = json.load(f)
-
-    print(json.dumps(summarize_findings(report), indent=2 if args.pretty else None))

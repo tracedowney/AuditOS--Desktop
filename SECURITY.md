@@ -1,25 +1,31 @@
 # Security Policy
 
+AuditOS is a local auditing tool and may surface security-relevant findings or handle sensitive local system information.
+
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please report it privately using GitHub's security advisory feature.
+Please do not open a public issue for a suspected security vulnerability.
 
-Steps:
+Instead, report:
 
-  1. Navigate to the repository
-  2. Click the **Security** tab
-  3. Click **Report a vulnerability**
+- affected platform and version
+- steps to reproduce
+- expected behavior
+- actual behavior
+- any proof-of-concept details or screenshots that help explain impact
 
-Please do not disclose security issues publicly until they have been reviewed.
+If you are coordinating a disclosure, clearly say so in the report.
 
-Include:
+## Scope
 
-  • Description of the issue
+Security reports are especially helpful for:
 
-  • Steps to reproduce
+- data exposure outside the local machine
+- unsafe packaging or release behavior
+- privilege or permission handling bugs
+- crashes or parsing behavior that can be triggered by hostile local data
+- incorrect findings that could materially mislead users about system risk
 
-  • Potential impact
+## Response Goals
 
-We will review and respond as quickly as possible.
-
-Responsible disclosure is appreciated.
+The project is still in beta, so timelines may vary, but reports should be triaged, reproduced, and fixed as quickly as practical.

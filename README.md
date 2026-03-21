@@ -1,176 +1,145 @@
-# AuditOS Desktop
+# AuditOS
 
-AuditOS Desktop is an open-source privacy auditing tool designed to help users identify potential privacy and security risks in their browser and system configuration.
+AuditOS is a local desktop auditing tool that helps people understand browser, network, and persistence-related settings on their computer without sending audit data off-device.
 
-The goal of AuditOS is to provide a **simple, transparent, locally-run privacy auditing tool** that helps users understand what information may be exposed through browser settings, extensions, and system configuration.
+The project is currently in beta. The focus right now is stability, clearer reporting, and making the app easy to test on macOS and Windows.
 
-AuditOS runs locally and **does not transmit audit data externally**.
+## What AuditOS Does
 
----
+- Runs local audits of browser extensions, proxy settings, DNS settings, startup items, scheduled tasks, certificates, and network-related system state
+- Supports a faster `Quick Audit` for common checks
+- Supports a broader `Deep Audit` for additional connection, listening-port, and routing visibility
+- Lets you save a baseline and compare later scans
+- Tracks behavior changes between scans so testers can spot what changed over time
 
-# Current Status
+## Core Principles
 
-AuditOS Desktop is currently in **early development and testing**.
+- All audits run locally on your machine
+- Your data does not leave your computer
+- AuditOS does not automatically remove, disable, or change system components
+- AuditOS is an informational tool, not an automated remediation tool
+- Optional scheduled scans only run while AuditOS is open during this beta
 
-The project is functional but still evolving. Features may change and bugs may exist while the auditing modules are expanded and stabilized.
+## Audit Modes
 
----
+### Quick Audit
 
-# Features
+Use `Quick Audit` for a fast snapshot of higher-level browser and system configuration checks. This is the best default option for routine testing.
 
-## Quick Privacy Audit
+Quick Audit currently focuses on:
 
-The Quick Audit performs a rapid scan of common browser and system configurations that may impact user privacy.
+- Browser extensions
+- Proxy settings
+- DNS settings
+- Network interfaces
+- Startup items
+- Scheduled tasks
+- Certificates
 
-This audit focuses on the most frequently overlooked settings and can provide immediate insight into potential privacy concerns without requiring a deep system scan.
+### Deep Audit
 
-This mode is designed for users who want a **fast overview of their system's privacy posture**.
+Use `Deep Audit` when you want additional visibility into live network behavior.
 
----
+Deep Audit includes everything in Quick Audit, plus:
 
-## Deep Privacy Audit
+- Active network connections
+- Listening ports
+- Routes / default routes
 
-The Deep Audit performs a more thorough inspection of browser configurations, installed extensions, and additional system indicators that may affect privacy or security.
+On macOS, parts of Deep Audit may show limited visibility if the OS denies process or socket enumeration. AuditOS should report that limitation instead of crashing.
 
-This audit takes longer to run but provides a **more detailed analysis of potential risks and exposures**.
+## Current Beta Scope
 
----
+AuditOS is still in the stabilization phase. Expect:
 
-## Browser Configuration Inspection
+- rough edges in cross-platform coverage
+- some findings that still need tuning for signal quality
+- packaging and release flow updates while the project hardens
 
-AuditOS reviews browser settings that may expose information or weaken privacy protections.
+## Installation
 
-Examples include:
+### macOS
 
-• tracking-related configuration  
-• security-related settings  
-• potentially unsafe defaults  
-• privacy-impacting browser behavior  
+1. Download the current macOS beta zip.
+2. Unzip it.
+3. Open `AuditOS.app`.
+4. If Gatekeeper blocks the app, right click `AuditOS.app`, choose `Open`, then confirm.
 
-The goal is to help users understand **how their browser configuration may affect their privacy**.
+### Windows
 
----
+1. Download the current Windows beta zip.
+2. Unzip it fully before launching.
+3. Open `AuditOS.exe`.
+4. If SmartScreen appears, choose `More info`, then `Run anyway`.
 
-## Extension Detection
+## What Testers Should Watch For
 
-Browser extensions can introduce additional privacy risks depending on their permissions and behavior.
+- crashes or hangs during Quick or Deep audit
+- sections that appear empty when they should contain data
+- findings that seem obviously incorrect or overly noisy
+- inconsistencies between repeated scans on the same machine
+- baseline or change-detection results that do not match expectations
 
-AuditOS identifies installed extensions and highlights ones that may warrant further review so users can better understand what third-party software has access to their browser environment.
+## Reporting Feedback
 
----
+When reporting an issue, include:
 
-## Privacy Risk Indicators
+- operating system and version
+- whether you ran Quick Audit or Deep Audit
+- what you expected to happen
+- what actually happened
+- screenshots or exported report JSON if helpful
 
-Audit results are translated into **easy-to-understand indicators** that highlight potential privacy concerns.
+If the issue is security-sensitive, please use the process in [SECURITY.md](SECURITY.md).
 
-Instead of overwhelming users with raw technical data, AuditOS attempts to present findings in a way that helps users quickly understand:
+## Development
 
-• what was detected  
-• why it matters  
-• whether action may be needed  
+### Requirements
 
----
+- Python 3.9+
+- `PySide6`
+- `psutil`
 
-# How AuditOS Works
+Install runtime dependencies with:
 
-AuditOS runs locally on the user's system and analyzes browser and system configuration data.
+```bash
+python3 -m pip install -r requirements.txt
+```
 
-No audit results are transmitted externally.
+### Run Locally
 
-All analysis occurs locally to ensure that **privacy audits themselves do not introduce additional privacy risks**.
+From the repo root:
 
----
+```bash
+cd app
+PYTHONPATH="$(pwd)/.." python3 main.py
+```
 
-# Installation
+On Windows PowerShell:
 
-Download the latest release from the GitHub Releases page:
+```powershell
+cd app
+$env:PYTHONPATH = (Resolve-Path "..").Path
+python main.py
+```
 
-https://github.com/tracedowney/AuditOS--Desktop/releases
+### Build Releases
 
-After downloading:
+The repo includes a PyInstaller spec and a PowerShell release script:
 
-1. Extract the archive
-2. Run the `AuditOS` executable
-3. Select either **Quick Audit** or **Deep Audit**
+- [AuditOS.spec](AuditOS.spec)
+- [build_release.ps1](build_release.ps1)
 
-No installation is required.
+The intended flow is to build from the spec so packaged output stays consistent across local release runs.
 
----
+## Project Docs
 
-# Why AuditOS Exists
+- [CHANGELOG.md](CHANGELOG.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+- [TERMS_OF_USE.txt](TERMS_OF_USE.txt)
+- [PRIVACY.txt](PRIVACY.txt)
 
-Many users are unaware of how much information their browser configuration, extensions, and system settings can expose.
+## License
 
-AuditOS was created to help individuals better understand their **digital privacy footprint** and identify potential security concerns in their environment.
-
----
-
-# Contributing
-
-Contributions are welcome.
-
-If you would like to contribute to AuditOS:
-
-1. Fork the repository
-2. Create a new branch
-3. Submit a pull request with your improvements
-
-Please review the contribution guidelines first.
-
-See **CONTRIBUTING.md**
-
----
-
-# Reporting Security Issues
-
-If you discover a security vulnerability, please report it responsibly.
-
-Do **not** open a public issue for security vulnerabilities.
-
-See **SECURITY.md**
-
----
-
-# Changelog
-
-Project changes and version history can be found in:
-
-**CHANGELOG.md**
-
----
-
-# Roadmap
-
-Future development goals include:
-
-• improved audit accuracy  
-• support for additional browsers  
-• privacy scoring system  
-• exportable audit reports  
-• cross-platform builds  
-• modular audit engine  
-
----
-
-# License
-
-This project is licensed under the **Apache License 2.0**.
-
-See the **LICENSE** file for full license text.
-
----
-
-# Author
-
-Created by **Trace Downey**
-
-GitHub  
-https://github.com/tracedowney
-
----
-
-# Disclaimer
-
-AuditOS is provided for informational and educational purposes.
-
-It is not intended to replace professional security auditing tools or enterprise security platforms.
+Copyright © 2026 AuditOS

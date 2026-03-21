@@ -1,47 +1,68 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-import subprocess
+from typing import Any, Dict, List
+
+from ..common_utils import make_finding, run_command
+
+
+def _certutil_store(store_name: str) -> tuple[int, str, str]:
+    return run_command(["certutil", "-store", store_name])
 
 
 def run():
-    items = []
-    findings = []
+    findings: List[Dict[str, Any]] = []
+    suspicious_subjects: List[str] = []
 
-    try:
-        output = subprocess.check_output(
-            ["certutil", "-store", "Root"],
-            text=True,
-            encoding="utf-8",
-            errors="ignore",
-        )
+    user_code, user_out, user_err = _certutil_store("Root")
+    machine_code, machine_out, machine_err = _certutil_store("AuthRoot")
 
-        current = {}
+    if user_code != 0 and machine_code != 0:
+        return {
+            "component": "certificates",
+            "user_root_count": 0,
+            "machine_root_count": 0,
+            "user_root_certificates": [],
+            "machine_root_sample": [],
+            "suspicious_subjects": [],
+            "findings": [
+                make_finding("certificates", "Failed to read Windows certificate stores", 3, {"user_error": user_err, "machine_error": machine_err})
+            ],
+            "errors": {"windows": "\n".join(x for x in [user_err, machine_err] if x)},
+        }
+
+    def extract_subjects(output: str) -> List[str]:
+        subjects = []
         for line in output.splitlines():
             line = line.strip()
-            if line.startswith("===="):
-                if current:
-                    items.append(current)
-                    current = {}
-            elif "Serial Number:" in line:
-                current["serial"] = line.split(":", 1)[1].strip()
-            elif "Issuer:" in line:
-                current["issuer"] = line.split(":", 1)[1].strip()
-            elif "Subject:" in line:
-                current["subject"] = line.split(":", 1)[1].strip()
+            if line.startswith("Subject:"):
+                subjects.append(line.partition(":")[2].strip())
+        return subjects
 
-        if current:
-            items.append(current)
+    user_subjects = extract_subjects(user_out)
+    machine_subjects = extract_subjects(machine_out)
 
-        return {
-            "component": "certificates",
-            "items": items[:200],
-            "findings": findings,
-            "error": "",
-        }
-    except Exception as e:
-        return {
-            "component": "certificates",
-            "items": [],
-            "findings": [],
-            "error": str(e),
-        }
+    for subject in user_subjects:
+        low = subject.lower()
+        if any(token in low for token in ("proxy", "inspection", "mitm", "debug", "filter", "avast", "kaspersky", "bitdefender")):
+            suspicious_subjects.append(subject)
+
+    if suspicious_subjects:
+        findings.append(
+            make_finding(
+                "certificates",
+                f"Review {len(suspicious_subjects)} certificate subject(s) with interception/security-tool indicators",
+                4,
+                {"subjects": suspicious_subjects[:10]},
+            )
+        )
+
+    return {
+        "component": "certificates",
+        "user_root_count": len(user_subjects),
+        "machine_root_count": len(machine_subjects),
+        "user_root_certificates": user_subjects[:25],
+        "machine_root_sample": machine_subjects[:25],
+        "suspicious_subjects": suspicious_subjects,
+        "findings": findings,
+        "errors": {"windows": ""},
+    }
