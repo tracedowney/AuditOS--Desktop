@@ -4,9 +4,11 @@ import importlib
 
 
 def test_baseline_store_does_not_fall_back_to_legacy_repo_state(monkeypatch, tmp_path):
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
     module = importlib.import_module("app.services.baseline_store")
     module = importlib.reload(module)
+    module.BASELINE_PATH = tmp_path / "baseline.json"
+    module.LAST_REPORT_PATH = tmp_path / "last_report.json"
+    module.SETTINGS_PATH = tmp_path / "settings.json"
 
     legacy_path = module.APP_DIR / "data" / "baseline.json"
     original = legacy_path.read_text(encoding="utf-8") if legacy_path.exists() else None
@@ -23,9 +25,9 @@ def test_baseline_store_does_not_fall_back_to_legacy_repo_state(monkeypatch, tmp
 
 
 def test_first_run_notice_only_honors_user_data_ack(monkeypatch, tmp_path):
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
     module = importlib.import_module("app.services.first_run_notice")
     module = importlib.reload(module)
+    module.ACK_FILE = tmp_path / "terms_acknowledged.json"
 
     legacy_ack = module.APP_DIR / "data" / "terms_acknowledged.json"
     original = legacy_ack.read_text(encoding="utf-8") if legacy_ack.exists() else None

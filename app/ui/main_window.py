@@ -75,7 +75,7 @@ def format_summary_html(summary: dict, mode: str = "") -> str:
         mode_label = f"<div style='font-size: 16px; font-weight: 700; color: #5f6368; margin-bottom: 10px;'>{pretty_mode}</div>"
 
     return f"""
-    <div style="font-family: 'Segoe UI', sans-serif; color: #202124; line-height: 1.45;">
+    <div style="color: #202124; line-height: 1.45;">
       {mode_label}
 
       <div style="display: block; margin-bottom: 18px;">
