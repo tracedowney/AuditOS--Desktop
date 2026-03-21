@@ -128,7 +128,7 @@ python main.py
 The repo includes a PyInstaller spec and a PowerShell release script:
 
 - [AuditOS.spec](AuditOS.spec)
-- [build_release.ps1](build_release.ps1)
+- [scripts/build_release.ps1](scripts/build_release.ps1)
 
 The intended flow is to build from the spec so packaged output stays consistent across local release runs.
 
@@ -137,8 +137,8 @@ The intended flow is to build from the spec so packaged output stays consistent 
 - [CHANGELOG.md](CHANGELOG.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [SECURITY.md](SECURITY.md)
-- [TERMS_OF_USE.txt](TERMS_OF_USE.txt)
-- [PRIVACY.txt](PRIVACY.txt)
+- [NOTICE](NOTICE)
+- [PRIVACY](PRIVACY)
 
 ## License
 
