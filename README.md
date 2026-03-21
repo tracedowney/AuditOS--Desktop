@@ -4,6 +4,20 @@ AuditOS is a local desktop auditing tool that helps people understand browser, n
 
 The project is currently in beta. The focus right now is stability, clearer reporting, and making the app easy to test on macOS and Windows.
 
+## Get The Beta
+
+- Download the latest beta build from [GitHub Releases](https://github.com/tracedowney/AuditOS--Desktop/releases)
+- Use `Quick Audit` for a fast first pass
+- Use `Deep Audit` when you want extra network and routing visibility
+
+## Give Feedback
+
+- Report a bug: [Open a bug report](https://github.com/tracedowney/AuditOS--Desktop/issues/new?template=bug_report.md)
+- Suggest an improvement: [Open a feature request](https://github.com/tracedowney/AuditOS--Desktop/issues/new?template=feature_request.md)
+- For security-sensitive reports, follow [SECURITY.md](SECURITY.md)
+
+When reporting an issue, include your platform, whether you ran Quick or Deep Audit, screenshots when possible, and an exported report JSON if you have one.
+
 ## What AuditOS Does
 
 - Runs local audits of browser extensions, proxy settings, DNS settings, startup items, scheduled tasks, certificates, and network-related system state
