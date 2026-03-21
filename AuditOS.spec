@@ -1,7 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+import sys
+
 # Managed hardening spec.
 # Source-of-truth for packaging is the app package tree discovered at build time.
+
+ROOT = Path(globals().get("__file__", Path.cwd() / "AuditOS.spec")).resolve().parent
+APP_DIR = ROOT / "app"
+
+
+def include_if_exists(path: Path, destination: str = "."):
+    if path.exists():
+        return [(str(path), destination)]
+    return []
 
 hiddenimports = [
     "app",
@@ -59,16 +71,18 @@ hiddenimports = [
     "app.workers",
 ]
 
+datas = []
+for doc_name in ("LICENSE", "NOTICE", "PRIVACY", "README.md", "CHANGELOG.md"):
+    datas.extend(include_if_exists(ROOT / doc_name))
+
+icon_path = APP_DIR / ("AuditOS.icns" if sys.platform == "darwin" else "icon.ico")
+icon_arg = str(icon_path) if icon_path.exists() else None
+
 a = Analysis(
-    ['app/main.py'],
-    pathex=[r'C:/Scripts/AuditOS', r'C:/Scripts/AuditOS/app'],
+    [str(APP_DIR / "main.py")],
+    pathex=[str(ROOT), str(APP_DIR)],
     binaries=[],
-    datas=[
-        ('TERMS_OF_USE.txt', '.'),
-        ('COPYRIGHT.txt', '.'),
-        ('PRIVACY.txt', '.'),
-        ('BETA_ACKNOWLEDGEMENT.txt', '.'),
-    ],
+    datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -82,9 +96,8 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='AuditOS',
     debug=False,
     bootloader_ignore_signals=False,
@@ -93,5 +106,31 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
-    icon=r'C:/Scripts/AuditOS/app/icon.ico',
+    icon=icon_arg,
 )
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name="AuditOS",
+)
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="AuditOS.app",
+        icon=icon_arg,
+        bundle_identifier="com.auditos.desktop",
+        info_plist={
+            "CFBundleName": "AuditOS",
+            "CFBundleDisplayName": "AuditOS",
+            "CFBundleShortVersionString": "0.4",
+            "CFBundleVersion": "0.4",
+            "NSPrincipalClass": "NSApplication",
+        },
+    )
