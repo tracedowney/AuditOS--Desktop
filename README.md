@@ -18,6 +18,7 @@ The project is currently in beta. The focus right now is stability, clearer repo
 - Your data does not leave your computer
 - AuditOS does not automatically remove, disable, or change system components
 - AuditOS is an informational tool, not an automated remediation tool
+- Optional scheduled scans only run while AuditOS is open during this beta
 
 ## Audit Modes
 

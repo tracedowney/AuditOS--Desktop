@@ -70,6 +70,7 @@ class BehaviorTable(QTableWidget):
         super().__init__(0, 3)
         self.setHorizontalHeaderLabels(["What Changed", "Program or Item", "Plain-English Meaning"])
         self.verticalHeader().setVisible(False)
+        self.setWordWrap(False)
         header = self.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -90,9 +91,10 @@ class BehaviorTable(QTableWidget):
             self.setItem(
                 row,
                 2,
-                QTableWidgetItem(
-                    f"{_normality_label(str(name))}. {friendly} connected to {_connection_target(str(addr), int(port))} on port {port} since the last scan."
-                ),
+                QTableWidgetItem("Click this row to read the full explanation below."),
+            )
+            self.item(row, 2).setToolTip(
+                f"{_normality_label(str(name))}. {friendly} connected to {_connection_target(str(addr), int(port))} on port {port} since the last scan."
             )
 
         for name, port in listening_ports:
@@ -101,35 +103,40 @@ class BehaviorTable(QTableWidget):
             friendly = _friendly_item_name(str(name))
             self.setItem(row, 0, QTableWidgetItem("New Open Port"))
             self.setItem(row, 1, QTableWidgetItem(friendly))
-            self.setItem(row, 2, QTableWidgetItem(_listening_meaning(str(name), int(port))))
+            self.setItem(row, 2, QTableWidgetItem("Click this row to read the full explanation below."))
+            self.item(row, 2).setToolTip(_listening_meaning(str(name), int(port)))
 
         for browser, ext_id in behavior.get("new_extensions", []):
             row = self.rowCount()
             self.insertRow(row)
             self.setItem(row, 0, QTableWidgetItem("New Extension"))
             self.setItem(row, 1, QTableWidgetItem(str(browser)))
-            self.setItem(row, 2, QTableWidgetItem(f"Browser extension ID observed: {ext_id}"))
+            self.setItem(row, 2, QTableWidgetItem("Click this row to read the full explanation below."))
+            self.item(row, 2).setToolTip(f"Browser extension ID observed: {ext_id}")
 
         for server in behavior.get("new_dns_servers", []):
             row = self.rowCount()
             self.insertRow(row)
             self.setItem(row, 0, QTableWidgetItem("New DNS Server"))
             self.setItem(row, 1, QTableWidgetItem(str(server)))
-            self.setItem(row, 2, QTableWidgetItem("A new DNS server appeared compared with the last scan"))
+            self.setItem(row, 2, QTableWidgetItem("Click this row to read the full explanation below."))
+            self.item(row, 2).setToolTip("A new DNS server appeared compared with the last scan")
 
         for item in behavior.get("new_startup_items", []):
             row = self.rowCount()
             self.insertRow(row)
             self.setItem(row, 0, QTableWidgetItem("New Startup Item"))
             self.setItem(row, 1, QTableWidgetItem(str(item)))
-            self.setItem(row, 2, QTableWidgetItem("This item can start automatically and was not in the last scan"))
+            self.setItem(row, 2, QTableWidgetItem("Click this row to read the full explanation below."))
+            self.item(row, 2).setToolTip("This item can start automatically and was not in the last scan")
 
         for task in behavior.get("new_scheduled_tasks", []):
             row = self.rowCount()
             self.insertRow(row)
             self.setItem(row, 0, QTableWidgetItem("New Scheduled Task"))
             self.setItem(row, 1, QTableWidgetItem(str(task)))
-            self.setItem(row, 2, QTableWidgetItem("This scheduled task appeared after the previous scan"))
+            self.setItem(row, 2, QTableWidgetItem("Click this row to read the full explanation below."))
+            self.item(row, 2).setToolTip("This scheduled task appeared after the previous scan")
 
         if self.rowCount() == 0:
             self.insertRow(0)
@@ -140,3 +147,4 @@ class BehaviorTable(QTableWidget):
             else:
                 detail = "No previous scan snapshot yet. Run another scan later to compare behavior."
             self.setItem(0, 2, QTableWidgetItem(detail))
+            self.item(0, 2).setToolTip(detail)

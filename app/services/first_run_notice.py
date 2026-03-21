@@ -36,7 +36,7 @@ PRIVACY = (
 EXTRA = (
     "AuditOS is an informational audit tool and does not automatically fix or remove system components.\n\n"
     "AuditOS performs audits only when you choose to run them.\n"
-    "AuditOS does not run background monitoring on its own.\n\n"
+    "AuditOS does not run background monitoring on its own. If you enable scheduled scans later, they run only while AuditOS is open.\n\n"
     "Quick Audit is the faster default scan.\n"
     "Deep Audit adds more network visibility, but some platforms may limit what AuditOS can see unless the OS grants access."
 )

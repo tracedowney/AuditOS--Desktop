@@ -53,6 +53,9 @@ def load_settings():
         return data
 
     return {
+        "schedule_enabled": False,
+        "schedule_frequency": "weekly",
+        "schedule_mode": "quick",
         "ai_enabled": False,
         "license_tier": "free",
     }

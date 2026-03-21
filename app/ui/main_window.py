@@ -25,7 +25,7 @@ from ui.changes_table import ChangesTable
 from ui.behavior_table import BehaviorTable
 from ui.settings_dialog import SettingsDialog
 from services.baseline_store import save_baseline, save_last_report, load_baseline
-from services.baseline_store import load_last_report
+from services.baseline_store import load_last_report, load_settings
 from services.diff_engine import build_diff
 from services.crash_logger import log_message
 from services.first_run_notice import show_first_run_notice
@@ -116,8 +116,6 @@ class MainWindow(QMainWindow):
             QWidget {
                 background: #f6f7f4;
                 color: #202124;
-                font-family: "Segoe UI", "SF Pro Text", sans-serif;
-                font-size: 14px;
             }
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -206,6 +204,9 @@ class MainWindow(QMainWindow):
         self.worker = None
         self.audit_running = False
         self.last_limitations_signature = ""
+        self.schedule_timer = QTimer(self)
+        self.schedule_timer.setSingleShot(True)
+        self.schedule_timer.timeout.connect(self.run_scheduled_audit)
 
         self.status = QLabel("AuditOS - System Transparency Audit Tool")
         self.scorecard_title = QLabel("AuditOS Scorecard")
@@ -216,19 +217,17 @@ class MainWindow(QMainWindow):
         self.quick = QPushButton("Quick Audit")
         self.deep = QPushButton("Deep Audit")
         self.baseline = QPushButton("Save Baseline")
-        self.changes = QPushButton("What Changed")
         self.settings_btn = QPushButton("Settings")
         self.export_btn = QPushButton("Export Report")
 
         self.quick.clicked.connect(lambda: self.run_audit("quick"))
         self.deep.clicked.connect(lambda: self.run_audit("deep"))
         self.baseline.clicked.connect(self.save_current_baseline)
-        self.changes.clicked.connect(self.show_changes)
         self.settings_btn.clicked.connect(self.open_settings)
         self.export_btn.clicked.connect(self.export_report)
 
         button_row = QHBoxLayout()
-        for b in [self.quick, self.deep, self.baseline, self.changes, self.settings_btn, self.export_btn]:
+        for b in [self.quick, self.deep, self.baseline, self.settings_btn, self.export_btn]:
             button_row.addWidget(b)
 
         self.findings = FindingsTable()
@@ -238,6 +237,9 @@ class MainWindow(QMainWindow):
         self.details = QTextEdit()
         self.details.setReadOnly(True)
         self.details.setMinimumHeight(250)
+        self.behavior_detail = QLabel("Select a behavior item to read the full explanation.")
+        self.behavior_detail.setWordWrap(True)
+        self.behavior_detail.setStyleSheet("color: #5f6368; padding: 8px 4px;")
 
         scorecard_header = QHBoxLayout()
         scorecard_header.addWidget(self.scorecard_title)
@@ -283,6 +285,7 @@ class MainWindow(QMainWindow):
         l3.addLayout(self._build_info_row("About Behavior", self.behavior_info_btn))
         l3.addWidget(self.behavior_info_label)
         l3.addWidget(self.behavior_table)
+        l3.addWidget(self.behavior_detail)
 
         self.tabs.addTab(tab1, "Findings")
         self.tabs.addTab(tab2, "Changes")
@@ -298,7 +301,10 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
         self.findings.itemSelectionChanged.connect(self.on_finding_selected)
+        self.behavior_table.itemSelectionChanged.connect(self.on_behavior_selected)
         self.changes_table.load_changes([])
+        self.refresh_changes_preview()
+        self.configure_schedule()
 
         QTimer.singleShot(0, lambda: show_first_run_notice(self))
 
@@ -378,6 +384,7 @@ class MainWindow(QMainWindow):
             save_baseline(self.current_report)
             self.status.setText("Baseline saved")
             log_message("Baseline saved from first-run prompt")
+            self.refresh_changes_preview()
 
     def audit_finished(self, report):
         try:
@@ -416,6 +423,7 @@ class MainWindow(QMainWindow):
             self.details.setHtml(format_summary_html(summary, mode))
             self.maybe_explain_limitations(limitations)
             self.refresh_changes_preview()
+            self.configure_schedule()
 
             self.maybe_prompt_for_baseline()
 
@@ -457,6 +465,7 @@ class MainWindow(QMainWindow):
             save_baseline(self.current_report)
             self.status.setText("Baseline saved")
             log_message("Baseline saved successfully")
+            self.refresh_changes_preview()
 
         except Exception:
             import traceback
@@ -518,6 +527,15 @@ class MainWindow(QMainWindow):
         self.status.setText(
             f"Selected finding: {str(finding.get('severity', '')).upper()} | {finding.get('detail', '')}"
         )
+
+    def on_behavior_selected(self):
+        row = self.behavior_table.currentRow()
+        if row < 0:
+            return
+        item = self.behavior_table.item(row, 2)
+        if not item:
+            return
+        self.behavior_detail.setText(item.toolTip() or item.text())
 
     def refresh_changes_preview(self):
         if not self.current_report:
@@ -588,4 +606,35 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Exported", f"Saved report to {path}")
 
     def open_settings(self):
-        SettingsDialog(self).exec()
+        dialog = SettingsDialog(self)
+        if dialog.exec():
+            self.configure_schedule()
+
+    def configure_schedule(self):
+        settings = load_settings()
+        if not settings.get("schedule_enabled"):
+            self.schedule_timer.stop()
+            return
+
+        frequency = str(settings.get("schedule_frequency", "weekly")).lower()
+        interval_map = {
+            "daily": 24 * 60 * 60 * 1000,
+            "weekly": 7 * 24 * 60 * 60 * 1000,
+            "monthly": 30 * 24 * 60 * 60 * 1000,
+        }
+        interval_ms = interval_map.get(frequency, interval_map["weekly"])
+        self.schedule_timer.start(interval_ms)
+        log_message(
+            f"Scheduled scans enabled: mode={settings.get('schedule_mode', 'quick')} frequency={frequency}"
+        )
+
+    def run_scheduled_audit(self):
+        settings = load_settings()
+        if self.audit_running:
+            self.schedule_timer.start(15 * 60 * 1000)
+            log_message("Scheduled scan delayed because another audit is running")
+            return
+
+        mode = str(settings.get("schedule_mode", "quick")).lower()
+        log_message(f"Starting scheduled audit mode={mode}")
+        self.run_audit(mode)

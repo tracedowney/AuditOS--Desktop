@@ -22,6 +22,7 @@ class FindingsTable(QTableWidget):
         super().__init__(0, 3)
         self.setHorizontalHeaderLabels(["Priority", "Area", "What AuditOS Found"])
         self.verticalHeader().setVisible(False)
+        self.setWordWrap(True)
         header = self.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -39,3 +40,5 @@ class FindingsTable(QTableWidget):
             self.setItem(row, 0, QTableWidgetItem(severity))
             self.setItem(row, 1, QTableWidgetItem(area))
             self.setItem(row, 2, QTableWidgetItem(str(f.get("detail", ""))))
+
+        self.resizeRowsToContents()

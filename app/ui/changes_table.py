@@ -17,6 +17,7 @@ class ChangesTable(QTableWidget):
         super().__init__(0, 4)
         self.setHorizontalHeaderLabels(["Priority", "Area", "Change", "What It Means"])
         self.verticalHeader().setVisible(False)
+        self.setWordWrap(True)
         header = self.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -43,3 +44,5 @@ class ChangesTable(QTableWidget):
             self.setItem(row, 1, QTableWidgetItem(area))
             self.setItem(row, 2, QTableWidgetItem(str(c.get("title", ""))))
             self.setItem(row, 3, QTableWidgetItem(str(c.get("detail", ""))))
+
+        self.resizeRowsToContents()

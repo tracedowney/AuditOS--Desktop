@@ -5,6 +5,7 @@ AuditOS performs system audits locally.
 Current beta characteristics:
 - scans only run when initiated by the user
 - no automatic background monitoring
+- optional scheduled scans only run while AuditOS is open
 - audit reports stored locally
 - baseline snapshots stored locally
 
