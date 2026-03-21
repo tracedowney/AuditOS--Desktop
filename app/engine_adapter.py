@@ -1,9 +1,12 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import platform
 from typing import Any, Dict
 
-from engine.run_full_audit import build_report
+try:
+    from .engine.run_full_audit import build_report
+except ImportError:
+    from app.engine.run_full_audit import build_report
 
 
 def run_audit(mode: str = "quick") -> Dict[str, Any]:
