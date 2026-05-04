@@ -1,6 +1,12 @@
 # AuditOS
 
-AuditOS is a local desktop auditing tool that helps people understand browser, network, and persistence-related settings on their computer without sending audit data off-device.
+AuditOS helps you see what is starting, running, and changing on your computer in one place.
+
+It focuses on startup items, browser extensions and related background browser activity, scheduled tasks, and network-related system activity. AuditOS presents that information in plainer, more organized terms so you can better understand what deserves attention and make more informed decisions about what may no longer be necessary.
+
+That gives you a clearer view of what is running, what has changed over time, and what may be worth investigating, keeping, disabling, or removing outside the app using the tools you already trust.
+
+AuditOS is a local desktop auditing tool for macOS and Windows. Audit data stays on your machine, and the app does not automatically remove, disable, or change system components.
 
 The project is currently in beta. The focus right now is stability, clearer reporting, and making the app easy to test on macOS and Windows.
 
@@ -32,6 +38,7 @@ When reporting an issue, include your platform, whether you ran Quick or Deep Au
 - Your data does not leave your computer
 - AuditOS does not automatically remove, disable, or change system components
 - AuditOS is an informational tool, not an automated remediation tool
+- AuditOS helps surface unfamiliar or changed system state; it does not claim to fully diagnose every process or startup item
 - Optional scheduled scans only run while AuditOS is open during this beta
 
 ## Audit Modes
@@ -120,6 +127,12 @@ Install runtime dependencies with:
 python3 -m pip install -r requirements.txt
 ```
 
+Install development dependencies with:
+
+```bash
+python3 -m pip install -r requirements.txt -r requirements-dev.txt
+```
+
 ### Run Locally
 
 From the repo root:
@@ -135,6 +148,20 @@ On Windows PowerShell:
 cd app
 $env:PYTHONPATH = (Resolve-Path "..").Path
 python main.py
+```
+
+### Run Tests
+
+If you use the repo-local `venv`, run:
+
+```bash
+./scripts/test.sh
+```
+
+If you are using another Python environment, install `requirements-dev.txt` there first and then run:
+
+```bash
+python3 -m pytest -q
 ```
 
 ### Build Releases

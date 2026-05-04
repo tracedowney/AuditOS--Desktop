@@ -6,7 +6,7 @@ AuditOS is NOT a virus detector.
 
 AuditOS is a system transparency and auditing tool.
 
-Its purpose is to help you understand what your computer is doing.
+Its purpose is to help you see what is starting, running, and changing on your computer in one place.
 
 AuditOS analyzes things like:
 
@@ -18,12 +18,15 @@ AuditOS analyzes things like:
 • DNS and proxy settings
 • System certificates
 
-The goal is to provide visibility into background processes and system behavior so users can:
+The goal is to organize that information in clearer terms so users can:
 
 • Understand what is running on their machine
+• Understand what background browser and system activity deserves attention
 • Verify that security tools are behaving as expected
 • Detect unexpected system changes
-• Make informed decisions about security settings
+• Make more informed decisions about what may no longer be necessary
+
+This gives users a better basis for deciding what to investigate, keep, disable, or remove using the tools they already trust.
 
 AuditOS does NOT attempt to classify software as malware.
 

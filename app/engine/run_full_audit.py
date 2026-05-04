@@ -18,12 +18,8 @@ from engine.audit_startup_items import audit_startup_items
 from engine.summarize_findings import summarize_findings
 
 
-
-def main() -> int:
-    ap = argparse.ArgumentParser(description="System and connection security auditor")
-    ap.add_argument("--output", default="full_security_audit.json")
-    ap.add_argument("--pretty", action="store_true")
-    args = ap.parse_args()
+def build_report(mode: str = "quick") -> dict:
+    normalized_mode = str(mode).strip().lower()
 
     report = {
         "host_os": platform.platform(),
@@ -31,15 +27,30 @@ def main() -> int:
         "proxy_settings": audit_proxy_settings(),
         "dns_settings": audit_dns_settings(),
         "network_interfaces": audit_network_interfaces(),
-        "routes": audit_routes(),
-        "active_connections": audit_active_connections(),
-        "listening_ports": audit_listening_ports(),
         "startup_items": audit_startup_items(),
         "scheduled_tasks": audit_scheduled_tasks(),
         "certificates": audit_certificates(),
     }
 
+    if normalized_mode == "deep":
+        report.update({
+            "routes": audit_routes(),
+            "active_connections": audit_active_connections(),
+            "listening_ports": audit_listening_ports(),
+        })
+
     report["summary"] = summarize_findings(report)
+    return report
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="System and connection security auditor")
+    ap.add_argument("--output", default="full_security_audit.json")
+    ap.add_argument("--pretty", action="store_true")
+    ap.add_argument("--mode", choices=["quick", "deep"], default="deep")
+    args = ap.parse_args()
+
+    report = build_report(mode=args.mode)
 
     out = Path(args.output)
     out.write_text(json.dumps(report, indent=2 if args.pretty else None), encoding="utf-8")
@@ -50,30 +61,11 @@ def main() -> int:
     print(f"Medium findings: {report['summary']['counts']['medium']}")
     print(f"Low findings: {report['summary']['counts']['low']}")
     print("\nTop findings:")
-    for f in report["summary"]["top_findings"][:10]:
-        print(f"- [{f['severity'].upper()}] {f['detail']}")
+    for finding in report["summary"]["top_findings"][:10]:
+        print(f"- [{finding['severity'].upper()}] {finding['detail']}")
 
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-def build_report(mode="quick"):
-    report = {
-        "host_os": platform.platform(),
-        "browser_extensions": audit_browser_extensions(),
-        "proxy_settings": audit_proxy_settings(),
-        "dns_settings": audit_dns_settings(),
-        "network_interfaces": audit_network_interfaces(),
-        "routes": audit_routes(),
-        "active_connections": audit_active_connections(),
-        "listening_ports": audit_listening_ports(),
-        "startup_items": audit_startup_items(),
-        "scheduled_tasks": audit_scheduled_tasks(),
-        "certificates": audit_certificates(),
-    }
-
-    report["summary"] = summarize_findings(report)
-    return report
-

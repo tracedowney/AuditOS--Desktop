@@ -47,17 +47,12 @@ def _risk_color(risk: str) -> str:
 
 def format_summary_html(summary: dict, mode: str = "") -> str:
     counts = summary.get("counts", {})
-    recs = summary.get("recommendations", [])
     limitations = summary.get("limitations", [])
     plain_summary = summary.get("plain_summary", [])
 
     summary_lines = "".join(
         f"<li>{line}</li>" for line in plain_summary
     ) or "<li>AuditOS is still gathering enough context to describe this scan.</li>"
-
-    recommendation_lines = "".join(
-        f"<li>{rec}</li>" for rec in recs
-    ) or "<li>No immediate recommendations from this scan.</li>"
 
     limitation_block = ""
     if limitations:
@@ -90,11 +85,6 @@ def format_summary_html(summary: dict, mode: str = "") -> str:
       <div style="margin-bottom: 16px;">
         <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Notable Findings</div>
         <ul style="margin: 0 0 0 18px;">{summary_lines}</ul>
-      </div>
-
-      <div style="margin-bottom: 12px;">
-        <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Recommended Next Steps</div>
-        <ul style="margin: 0 0 0 18px;">{recommendation_lines}</ul>
       </div>
 
       {limitation_block}

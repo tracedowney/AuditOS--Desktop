@@ -44,41 +44,7 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     is_windows = "windows" in host_os
     is_linux = "linux" in host_os
 
-    recs = []
     plain_summary = []
-
-    if any(f["category"] == "proxy" for f in all_findings):
-        if is_macos:
-            recs.append("Review proxy and PAC settings in macOS Network settings.")
-        elif is_windows:
-            recs.append("Review proxy and PAC settings in Windows and the browser.")
-        elif is_linux:
-            recs.append("Review proxy settings in your desktop/network configuration.")
-        else:
-            recs.append("Review proxy and PAC settings on this system.")
-
-    if any(f["category"] == "browser_extension" for f in all_findings):
-        recs.append("Review browser extensions with broad host access or sensitive permissions.")
-
-    if any(f["category"] in {"startup_items", "scheduled_tasks"} for f in all_findings):
-        if is_macos:
-            recs.append("Review LaunchAgents, LaunchDaemons, and launchctl jobs you do not recognize.")
-        elif is_windows:
-            recs.append("Review startup items and scheduled tasks that launch from AppData, Temp, Downloads, or script hosts.")
-        else:
-            recs.append("Review startup and scheduled items that launch unexpectedly or from unusual paths.")
-
-    if any(f["category"] == "certificates" for f in all_findings):
-        if is_macos:
-            recs.append("Review trusted certificates in Keychain Access if you suspect unexpected trust changes.")
-        else:
-            recs.append("Review root certificates for anything you do not recognize.")
-
-    if any(f["category"] in {"active_connections", "listening_ports"} for f in all_findings):
-        recs.append("Review processes with unusual public connections or listening ports, especially from user-writeable paths.")
-
-    if limitations and is_macos:
-        recs.append("If Deep Audit shows limited visibility on macOS, review system privacy permissions and rerun the scan.")
 
     if not all_findings:
         plain_summary.append("AuditOS did not see any findings that it considers notable in this scan.")
@@ -108,7 +74,6 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
         "counts": counts,
         "total_findings": len(all_findings),
         "top_findings": all_findings[:25],
-        "recommendations": recs,
         "limitations": limitations,
         "plain_summary": plain_summary,
     }

@@ -11,8 +11,14 @@ Thanks for helping improve AuditOS.
 ## Local Setup
 
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt -r requirements-dev.txt
 python3 app/main.py
+```
+
+Run tests with:
+
+```bash
+./scripts/test.sh
 ```
 
 ## Contribution Priorities
