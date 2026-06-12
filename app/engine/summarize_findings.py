@@ -11,21 +11,40 @@ def _finding_key(finding: Dict[str, Any]) -> tuple[str, str, str]:
     )
 
 
+def _collect_findings(value: Any) -> List[Dict[str, Any]]:
+    collected: List[Dict[str, Any]] = []
+
+    if isinstance(value, dict):
+        findings = value.get("findings")
+        if isinstance(findings, list):
+            collected.extend(finding for finding in findings if isinstance(finding, dict))
+
+        for nested in value.values():
+            if nested is findings:
+                continue
+            collected.extend(_collect_findings(nested))
+
+    elif isinstance(value, list):
+        for item in value:
+            collected.extend(_collect_findings(item))
+
+    return collected
+
+
 def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     all_findings: List[Dict[str, Any]] = []
     limitations: List[str] = []
     seen_findings: set[tuple[str, str, str]] = set()
 
-    for _, value in report.items():
-        if isinstance(value, dict) and isinstance(value.get("findings"), list):
-            for finding in value["findings"]:
-                key = _finding_key(finding)
-                if key not in seen_findings:
-                    all_findings.append(finding)
-                    seen_findings.add(key)
-                detail = str(finding.get("detail", ""))
-                if detail.startswith("Limited visibility:") and detail not in limitations:
-                    limitations.append(detail)
+    for value in report.values():
+        for finding in _collect_findings(value):
+            key = _finding_key(finding)
+            if key not in seen_findings:
+                all_findings.append(finding)
+                seen_findings.add(key)
+            detail = str(finding.get("detail", ""))
+            if detail.startswith("Limited visibility:") and detail not in limitations:
+                limitations.append(detail)
 
     all_findings.sort(key=lambda x: x.get("score", 0), reverse=True)
 
@@ -44,6 +63,12 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
     is_windows = "windows" in host_os
     is_linux = "linux" in host_os
 
+    browser_extension_items = report.get("browser_extensions", {}).get("items", [])
+    has_browser_extension_findings = any(f["category"] == "browser_extension" for f in all_findings) or any(
+        isinstance(item, dict) and isinstance(item.get("findings"), list) and item.get("findings")
+        for item in browser_extension_items
+    )
+
     plain_summary = []
 
     if not all_findings:
@@ -56,7 +81,7 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
         else:
             plain_summary.append("AuditOS only found low-priority items in this scan.")
 
-        if any(f["category"] == "browser_extension" for f in all_findings):
+        if has_browser_extension_findings:
             plain_summary.append("At least one browser extension has permissions or site access that may be broader than expected.")
 
         if any(f["category"] in {"startup_items", "scheduled_tasks"} for f in all_findings):

@@ -25,6 +25,16 @@ def _task_key(task_name: str, action: str, status: str) -> tuple[str, str, str]:
     return (task_name.strip().lower(), action.strip().lower(), status.strip().lower())
 
 
+def _is_header_row(task_name: str, action: str, status: str, author: str) -> bool:
+    normalized = (
+        task_name.strip().lower(),
+        action.strip().lower(),
+        status.strip().lower(),
+        author.strip().lower(),
+    )
+    return normalized == ("taskname", "task to run", "status", "author")
+
+
 def _is_low_signal_microsoft_task(task_name: str, action: str) -> bool:
     normalized_name = task_name.strip().lower()
     normalized_action = action.strip().lower()
@@ -55,6 +65,9 @@ def run():
         task_name = row.get("TaskName", "") or row.get("Task Name", "")
         action = row.get("Task To Run", "") or row.get("Actions", "")
         status = row.get("Status", "")
+        author = row.get("Author", "")
+        if _is_header_row(task_name, action, status, author):
+            continue
         dedupe_key = _task_key(task_name, action, status)
         if dedupe_key in seen_items:
             continue
@@ -65,7 +78,7 @@ def run():
             "label": task_name,
             "action": action,
             "status": status,
-            "author": row.get("Author", ""),
+            "author": author,
         }
         items.append(item)
 

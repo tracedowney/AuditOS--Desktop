@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 from services.app_paths import ensure_user_data_dir
+from version_info import APP_VERSION, PERSISTENCE_VERSION
 
 APP_DIR = Path(__file__).resolve().parent.parent
 LEGACY_DATA_DIR = APP_DIR / "data"
@@ -26,6 +27,10 @@ NOISY_WINDOWS_PROCESSES = {
     "wininit.exe",
 }
 NOISY_WINDOWS_PORTS = {135, 139, 445, 5040}
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _friendly_program_name(name: str) -> str:
@@ -120,10 +125,12 @@ def _task_keys(report: Dict[str, Any]) -> Set[str]:
 
 
 def save_snapshot(report: Dict[str, Any]) -> Path:
-    stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     path = HISTORY_DIR / f"{stamp}.json"
     payload = {
-        "saved_at": stamp,
+        "saved_at": _utc_now_iso(),
+        "app_version": APP_VERSION,
+        "data_version": PERSISTENCE_VERSION,
         "connections": sorted(list(_connection_keys(report))),
         "listening_ports": sorted(list(_listening_keys(report))),
         "extensions": sorted(list(_extension_keys(report))),
@@ -139,9 +146,15 @@ def load_latest_snapshot() -> Dict[str, Any] | None:
     files = sorted(HISTORY_DIR.glob("*.json"))
     if not files and LEGACY_HISTORY_DIR.exists():
         files = sorted(LEGACY_HISTORY_DIR.glob("*.json"))
-    if not files:
-        return None
-    return json.loads(files[-1].read_text(encoding="utf-8"))
+    for path in reversed(files):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            isinstance(data, dict)
+            and data.get("app_version") == APP_VERSION
+            and data.get("data_version") == PERSISTENCE_VERSION
+        ):
+            return data
+    return None
 
 
 def diff_behavior(report: Dict[str, Any], previous: Dict[str, Any] | None) -> Dict[str, Any]:

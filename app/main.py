@@ -3,6 +3,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 from services.crash_logger import install_global_exception_hook, log_message
 from ui.main_window import MainWindow
+from version_info import APP_VERSION
 
 def main() -> int:
     install_global_exception_hook()
@@ -11,6 +12,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("AuditOS")
     app.setOrganizationName("AuditOS")
+    app.setApplicationVersion(APP_VERSION)
 
     window = MainWindow()
     window.resize(1150, 800)

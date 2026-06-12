@@ -29,6 +29,7 @@ from services.baseline_store import load_last_report, load_settings
 from services.diff_engine import build_diff
 from services.crash_logger import log_message
 from services.first_run_notice import show_first_run_notice
+from services.report_export import default_report_filename
 from services.network_behavior_baseline import (
     load_latest_snapshot,
     save_snapshot,
@@ -580,7 +581,7 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Export Report",
-            "audit_report.json",
+            default_report_filename(self.current_report),
             "JSON Files (*.json)",
         )
 

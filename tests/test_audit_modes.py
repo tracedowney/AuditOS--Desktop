@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+from datetime import datetime
 
 
 def _empty_component(name: str) -> dict:
@@ -44,11 +45,14 @@ def test_quick_audit_skips_deep_collectors(monkeypatch):
         "certificates",
         "dns_settings",
         "host_os",
+        "meta",
         "network_interfaces",
         "proxy_settings",
         "scheduled_tasks",
         "startup_items",
     ]
+    assert report["meta"]["mode"] == "quick"
+    assert datetime.fromisoformat(report["meta"]["generated_at"])
 
 
 def test_deep_audit_includes_deep_collectors(monkeypatch):
@@ -90,6 +94,8 @@ def test_deep_audit_includes_deep_collectors(monkeypatch):
     assert "routes" in report
     assert "active_connections" in report
     assert "listening_ports" in report
+    assert report["meta"]["mode"] == "deep"
+    assert datetime.fromisoformat(report["meta"]["generated_at"])
     assert calls == [
         "browser_extensions",
         "proxy_settings",

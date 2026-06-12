@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+from datetime import datetime
 from pathlib import Path
 
 from engine.audit_active_connections import audit_active_connections
@@ -16,6 +17,11 @@ from engine.audit_routes import audit_routes
 from engine.audit_scheduled_tasks import audit_scheduled_tasks
 from engine.audit_startup_items import audit_startup_items
 from engine.summarize_findings import summarize_findings
+from version_info import APP_VERSION
+
+
+def _generated_at_local() -> str:
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def build_report(mode: str = "quick") -> dict:
@@ -23,6 +29,11 @@ def build_report(mode: str = "quick") -> dict:
 
     report = {
         "host_os": platform.platform(),
+        "meta": {
+            "mode": normalized_mode,
+            "app_version": APP_VERSION,
+            "generated_at": _generated_at_local(),
+        },
         "browser_extensions": audit_browser_extensions(),
         "proxy_settings": audit_proxy_settings(),
         "dns_settings": audit_dns_settings(),

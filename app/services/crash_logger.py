@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 import sys
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from services.app_paths import ensure_user_data_dir
 
@@ -10,13 +10,17 @@ DATA_DIR = ensure_user_data_dir()
 
 CRASH_LOG_PATH = DATA_DIR / "crash.log"
 
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
 def log_message(message: str):
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = _utc_now_iso()
     with CRASH_LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] {message}\n")
 
 def log_exception(exc: BaseException):
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = _utc_now_iso()
     tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     with CRASH_LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(f"\n[{timestamp}] UNHANDLED EXCEPTION\n")
@@ -30,7 +34,7 @@ def install_global_exception_hook():
             return
 
         tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = _utc_now_iso()
 
         with CRASH_LOG_PATH.open("a", encoding="utf-8") as f:
             f.write(f"\n[{timestamp}] GLOBAL EXCEPTION\n")

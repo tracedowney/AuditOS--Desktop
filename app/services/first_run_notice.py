@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from services.app_paths import ensure_user_data_dir
+from version_info import APP_VERSION, DISCLOSURE_VERSION
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -41,15 +42,35 @@ EXTRA = (
     "Deep Audit adds more network visibility, but some platforms may limit what AuditOS can see unless the OS grants access."
 )
 
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _load_ack_payload() -> dict | None:
+    if not ACK_FILE.exists():
+        return None
+    try:
+        return json.loads(ACK_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def acknowledged() -> bool:
-    return ACK_FILE.exists()
+    payload = _load_ack_payload()
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("accepted") is not True:
+        return False
+    return payload.get("notice_version") == DISCLOSURE_VERSION
 
 
 def save_ack():
     payload = {
         "accepted": True,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "version": "1.0",
+        "timestamp": _utc_now_iso(),
+        "app_version": APP_VERSION,
+        "notice_version": DISCLOSURE_VERSION,
     }
     ACK_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
