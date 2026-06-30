@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 from pathlib import Path
+import re
 import sys
 
 # Managed hardening spec.
@@ -8,6 +9,25 @@ import sys
 
 ROOT = Path(globals().get("__file__", Path.cwd() / "AuditOS.spec")).resolve().parent
 APP_DIR = ROOT / "app"
+VERSION_FILE = APP_DIR / "version_info.py"
+
+
+def read_app_version() -> str:
+    if not VERSION_FILE.exists():
+        return "0.0.0"
+
+    match = re.search(
+        r'APP_VERSION\s*=\s*"([^"]+)"',
+        VERSION_FILE.read_text(encoding="utf-8"),
+    )
+    if not match:
+        return "0.0.0"
+
+    return match.group(1).strip()
+
+
+APP_VERSION = read_app_version()
+MAC_BUNDLE_VERSION = APP_VERSION.split("-", 1)[0]
 
 
 def include_if_exists(path: Path, destination: str = "."):
@@ -132,8 +152,8 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "AuditOS",
             "CFBundleDisplayName": "AuditOS",
-            "CFBundleShortVersionString": "0.4",
-            "CFBundleVersion": "0.4",
+            "CFBundleShortVersionString": MAC_BUNDLE_VERSION,
+            "CFBundleVersion": MAC_BUNDLE_VERSION,
             "NSPrincipalClass": "NSApplication",
         },
     )

@@ -18,7 +18,7 @@ All notable changes to AuditOS should be documented in this file.
 - Findings tooltips now surface more supporting detail, including process explanation, impact hints, paths, and command previews where available
 - Deep audit now degrades gracefully on macOS when the OS denies process or socket enumeration
 - macOS certificate checks no longer create a finding simply because certificates exist
-- Release workflow now builds from the checked-in PyInstaller spec and derives archive versions from `app/version_info.py`
+- Release workflow now builds from the checked-in PyInstaller spec, derives archive versions from `app/version_info.py`, and supports tag-aligned dual-platform beta publishing
 - README expanded with clearer beta, testing, and audit-mode guidance
 
 ### Repo

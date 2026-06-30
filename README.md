@@ -190,6 +190,8 @@ Run `pwsh -File ./scripts/build_release.ps1` to package a beta build. The script
 
 Use the release checklist to keep macOS and Windows beta artifacts aligned to the same commit and to smoke test the packaged app before upload.
 
+For repeatable beta releases, the repo also includes a tag-driven GitHub Actions workflow that can build macOS and Windows artifacts from the same `v*-beta` tag and publish them to the matching pre-release.
+
 ## Project Docs
 
 - [CHANGELOG.md](CHANGELOG.md)

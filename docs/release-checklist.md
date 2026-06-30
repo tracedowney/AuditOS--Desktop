@@ -16,6 +16,7 @@ Use this checklist when cutting a new beta so the macOS and Windows artifacts st
 
 - Build the macOS artifact from the exact commit you plan to release.
 - Build the Windows artifact from that same commit or tag.
+- Prefer pushing a beta tag such as `v0.4.5-beta` so GitHub Actions can build both platform artifacts from the same source state.
 - Use the release script:
   - `pwsh -File ./scripts/build_release.ps1`
 - The script derives the archive version from `app/version_info.py` unless you intentionally override it with `-Version`.
@@ -42,6 +43,7 @@ Use this checklist when cutting a new beta so the macOS and Windows artifacts st
 ## 5. Publish
 
 - Attach both platform artifacts to the same GitHub release.
+- If the tag-driven release workflow is enabled, let the workflow publish the macOS zip, Windows zip, and combined bundle for that tag.
 - Verify the release title, tag, artifact filenames, and version text all agree.
 - Keep a note of the commit SHA used to produce the release assets.
 
