@@ -16,9 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-latest
-          - windows-latest
+        include:
+          - os: macos-15
+            artifact_label: macos
+          - os: windows-latest
+            artifact_label: windows
 
     steps:
       - name: Check out repository
@@ -66,19 +68,19 @@ jobs:
         run: pyinstaller --clean --noconfirm AuditOS.spec
 
       - name: Package macOS artifact
-        if: runner.os == 'macOS'
+        if: matrix.artifact_label == 'macos'
         shell: bash
         run: |
           ditto -c -k --sequesterRsrc --keepParent dist/AuditOS.app "AuditOS_macOS_Beta_${{ steps.version.outputs.app_version }}.zip"
 
       - name: Package Windows artifact
-        if: runner.os == 'Windows'
+        if: matrix.artifact_label == 'windows'
         shell: pwsh
         run: |
           Compress-Archive -Path "dist/AuditOS\*" -DestinationPath "AuditOS_Windows_Beta_${{ steps.version.outputs.app_version }}.zip" -Force
 
       - name: Upload macOS artifact
-        if: runner.os == 'macOS'
+        if: matrix.artifact_label == 'macos'
         uses: actions/upload-artifact@v4
         with:
           name: release-macos
@@ -86,7 +88,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Windows artifact
-        if: runner.os == 'Windows'
+        if: matrix.artifact_label == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: release-windows
