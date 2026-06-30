@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "v0.1"
+    [string]$Version
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,7 +8,30 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 Set-Location $ProjectRoot
 
-Write-Host "Building AuditOS release from AuditOS.spec..."
+function Get-AppVersion {
+    $VersionFile = Join-Path $ProjectRoot "app/version_info.py"
+    if (-not (Test-Path $VersionFile)) {
+        throw "Could not find app version file at '$VersionFile'."
+    }
+
+    $VersionFileContent = Get-Content $VersionFile -Raw
+    $Match = [regex]::Match($VersionFileContent, 'APP_VERSION\s*=\s*"([^"]+)"')
+    if (-not $Match.Success) {
+        throw "Could not read APP_VERSION from '$VersionFile'."
+    }
+
+    return $Match.Groups[1].Value.Trim()
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = Get-AppVersion
+}
+
+if ($Version -notmatch '^[vV]') {
+    $Version = "v$Version"
+}
+
+Write-Host "Building AuditOS release from AuditOS.spec for $Version..."
 
 python -m pip install pyinstaller
 pyinstaller --noconfirm AuditOS.spec

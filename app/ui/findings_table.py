@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem
 
 AREA_LABELS = {
     "active_connections": "Internet Connections",
+    "background_tasks": "Background Tasks",
     "browser_extension": "Browser Extensions",
     "browser_extensions": "Browser Extensions",
     "certificates": "Certificates",
@@ -37,8 +38,33 @@ class FindingsTable(QTableWidget):
             severity = str(f.get("severity", "")).title()
             area_key = str(f.get("category", ""))
             area = AREA_LABELS.get(area_key, area_key.replace("_", " ").title())
-            self.setItem(row, 0, QTableWidgetItem(severity))
-            self.setItem(row, 1, QTableWidgetItem(area))
-            self.setItem(row, 2, QTableWidgetItem(str(f.get("detail", ""))))
+            priority_item = QTableWidgetItem(severity)
+            area_item = QTableWidgetItem(area)
+            detail_item = QTableWidgetItem(str(f.get("detail", "")))
+
+            evidence = f.get("evidence") if isinstance(f.get("evidence"), dict) else {}
+            tooltip_parts = [str(f.get("detail", ""))]
+            explanation = str(evidence.get("explanation", "")).strip()
+            impact_hint = str(evidence.get("impact_hint", "")).strip()
+            exe = str(evidence.get("exe", "")).strip()
+            cmdline_preview = str(evidence.get("cmdline_preview", "")).strip()
+
+            if explanation:
+                tooltip_parts.append(explanation)
+            if impact_hint:
+                tooltip_parts.append(f"Possible impact: {impact_hint}")
+            if exe:
+                tooltip_parts.append(f"Path: {exe}")
+            if cmdline_preview:
+                tooltip_parts.append(f"Command: {cmdline_preview}")
+
+            tooltip = "\n\n".join(part for part in tooltip_parts if part)
+            priority_item.setToolTip(tooltip)
+            area_item.setToolTip(tooltip)
+            detail_item.setToolTip(tooltip)
+
+            self.setItem(row, 0, priority_item)
+            self.setItem(row, 1, area_item)
+            self.setItem(row, 2, detail_item)
 
         self.resizeRowsToContents()

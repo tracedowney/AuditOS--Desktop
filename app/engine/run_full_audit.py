@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from engine.audit_active_connections import audit_active_connections
+from engine.audit_background_tasks import audit_background_tasks
 from engine.audit_browser_extensions import audit_browser_extensions
 from engine.audit_certificates import audit_certificates
 from engine.audit_dns_settings import audit_dns_settings
@@ -45,6 +46,7 @@ def build_report(mode: str = "quick") -> dict:
 
     if normalized_mode == "deep":
         report.update({
+            "background_tasks": audit_background_tasks(),
             "routes": audit_routes(),
             "active_connections": audit_active_connections(),
             "listening_ports": audit_listening_ports(),

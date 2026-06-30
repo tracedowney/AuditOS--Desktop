@@ -16,6 +16,19 @@ The project is currently in beta. The focus right now is stability, clearer repo
 - Use `Quick Audit` for a fast first pass
 - Use `Deep Audit` when you want extra network and routing visibility
 
+## Screenshots
+
+A few snapshots from the current beta:
+
+<p align="center">
+  <img src="docs/images/onboarding-welcome-dialog.png" alt="AuditOS welcome screen explaining that audits stay local and require user consent before continuing." width="48%" />
+  <img src="docs/images/quick-audit-baseline-prompt.png" alt="AuditOS quick audit results view showing a low overall risk score and prompting the user to save a baseline." width="48%" />
+</p>
+
+<p align="center">
+  <img src="docs/images/deep-audit-findings.png" alt="AuditOS deep audit findings view showing a low overall risk score, findings summary, and detailed results table." width="70%" />
+</p>
+
 ## Give Feedback
 
 - Report a bug: [Open a bug report](https://github.com/tracedowney/AuditOS--Desktop/issues/new?template=bug_report.md)
@@ -26,9 +39,9 @@ When reporting an issue, include your platform, whether you ran Quick or Deep Au
 
 ## What AuditOS Does
 
-- Runs local audits of browser extensions, proxy settings, DNS settings, startup items, scheduled tasks, certificates, and network-related system state
+- Runs local audits of browser extensions, proxy settings, DNS settings, startup items, scheduled tasks, live background tasks, certificates, and network-related system state
 - Supports a faster `Quick Audit` for common checks
-- Supports a broader `Deep Audit` for additional connection, listening-port, and routing visibility
+- Supports a broader `Deep Audit` for additional background-task, connection, listening-port, and routing visibility
 - Lets you save a baseline and compare later scans
 - Tracks behavior changes between scans so testers can spot what changed over time
 
@@ -59,10 +72,11 @@ Quick Audit currently focuses on:
 
 ### Deep Audit
 
-Use `Deep Audit` when you want additional visibility into live network behavior.
+Use `Deep Audit` when you want additional visibility into live network behavior and background activity that deserves verification.
 
 Deep Audit includes everything in Quick Audit, plus:
 
+- Running background tasks with plain-English process explanations
 - Active network connections
 - Listening ports
 - Routes / default routes
@@ -170,8 +184,11 @@ The repo includes a PyInstaller spec and a PowerShell release script:
 
 - [AuditOS.spec](AuditOS.spec)
 - [scripts/build_release.ps1](scripts/build_release.ps1)
+- [docs/release-checklist.md](docs/release-checklist.md)
 
-The intended flow is to build from the spec so packaged output stays consistent across local release runs.
+Run `pwsh -File ./scripts/build_release.ps1` to package a beta build. The script now derives the archive version from `app/version_info.py` unless you intentionally override it with `-Version`.
+
+Use the release checklist to keep macOS and Windows beta artifacts aligned to the same commit and to smoke test the packaged app before upload.
 
 ## Project Docs
 
@@ -180,6 +197,9 @@ The intended flow is to build from the spec so packaged output stays consistent 
 - [SECURITY.md](SECURITY.md)
 - [NOTICE](NOTICE)
 - [PRIVACY](PRIVACY)
+- [docs/release-checklist.md](docs/release-checklist.md)
+- [docs/objectives.md](docs/objectives.md)
+- [docs/parking-lot.md](docs/parking-lot.md)
 
 ## License
 

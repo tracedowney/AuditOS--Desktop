@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtCore import QTimer, Slot
+from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -20,12 +20,13 @@ from PySide6.QtWidgets import (
 )
 
 from workers import start_audit_in_thread
+from ui.background_tasks_table import BackgroundTasksTable
 from ui.findings_table import FindingsTable
 from ui.changes_table import ChangesTable
 from ui.behavior_table import BehaviorTable
 from ui.settings_dialog import SettingsDialog
 from services.baseline_store import save_baseline, save_last_report, load_baseline
-from services.baseline_store import load_last_report, load_settings
+from services.baseline_store import load_last_report, load_settings, save_settings
 from services.diff_engine import build_diff
 from services.crash_logger import log_message
 from services.first_run_notice import show_first_run_notice
@@ -35,6 +36,14 @@ from services.network_behavior_baseline import (
     save_snapshot,
     diff_behavior,
     format_behavior_diff,
+)
+from services.schedule_state import (
+    delay_schedule_until,
+    ensure_schedule_next_run,
+    is_schedule_due,
+    mark_schedule_completed,
+    next_schedule_timer_ms,
+    parse_schedule_timestamp,
 )
 
 
@@ -189,17 +198,22 @@ class MainWindow(QMainWindow):
         self.current_report = None
         self.current_findings = []
         self.current_behavior = {}
+        self.current_background_tasks = []
         self.previous_report = None
 
         self.thread = None
         self.worker = None
         self.audit_running = False
+        self.current_audit_origin = None
         self.last_limitations_signature = ""
         self.schedule_timer = QTimer(self)
         self.schedule_timer.setSingleShot(True)
-        self.schedule_timer.timeout.connect(self.run_scheduled_audit)
+        self.schedule_timer.timeout.connect(self.handle_schedule_timer)
 
         self.status = QLabel("AuditOS - System Transparency Audit Tool")
+        self.schedule_status = QLabel()
+        self.schedule_status.setStyleSheet("color: #5f6368; padding: 2px 2px 8px 2px;")
+        self.schedule_status.setWordWrap(True)
         self.scorecard_title = QLabel("AuditOS Scorecard")
         self.scorecard_risk = QLabel("Overall Risk: UNKNOWN")
         self.scorecard_title.setStyleSheet("font-size: 28px; font-weight: 800; color: #202124;")
@@ -224,13 +238,21 @@ class MainWindow(QMainWindow):
         self.findings = FindingsTable()
         self.changes_table = ChangesTable()
         self.behavior_table = BehaviorTable()
+        self.background_tasks_table = BackgroundTasksTable()
 
         self.details = QTextEdit()
         self.details.setReadOnly(True)
         self.details.setMinimumHeight(250)
         self.behavior_detail = QLabel("Select a behavior item to read the full explanation.")
         self.behavior_detail.setWordWrap(True)
+        self.behavior_detail.setTextFormat(Qt.PlainText)
         self.behavior_detail.setStyleSheet("color: #5f6368; padding: 8px 4px;")
+        self.background_task_detail = QLabel(
+            "Run Deep Audit, then select a background task to read what AuditOS thinks it is doing and what ending it might affect."
+        )
+        self.background_task_detail.setWordWrap(True)
+        self.background_task_detail.setTextFormat(Qt.PlainText)
+        self.background_task_detail.setStyleSheet("color: #5f6368; padding: 8px 4px;")
 
         scorecard_header = QHBoxLayout()
         scorecard_header.addWidget(self.scorecard_title)
@@ -246,15 +268,30 @@ class MainWindow(QMainWindow):
         self.behavior_info_label = QLabel(
             "Behavior highlights internet activity, open ports, startup items, scheduled tasks, and extensions. Startup items and scheduled tasks are programs or jobs that can run automatically."
         )
-        for label in [self.changes_info_label, self.behavior_info_label, self.changes_state_label]:
+        self.background_tasks_info_label = QLabel(
+            "Background Tasks lists running processes from Deep Audit and translates them into plainer language so unfamiliar names are easier to reason about."
+        )
+        self.background_tasks_state_label = QLabel(
+            "Run Deep Audit to inspect live background tasks and see which ones AuditOS thinks deserve a closer look."
+        )
+        for label in [
+            self.changes_info_label,
+            self.behavior_info_label,
+            self.changes_state_label,
+            self.background_tasks_info_label,
+            self.background_tasks_state_label,
+        ]:
             label.setWordWrap(True)
             label.setVisible(False)
             label.setStyleSheet("color: #5f6368; padding: 6px 8px;")
         self.changes_info_label.setVisible(True)
         self.changes_state_label.setVisible(True)
+        self.background_tasks_info_label.setVisible(True)
+        self.background_tasks_state_label.setVisible(True)
 
         self.changes_info_btn = self._make_info_button(self.changes_info_label)
         self.behavior_info_btn = self._make_info_button(self.behavior_info_label)
+        self.background_tasks_info_btn = self._make_info_button(self.background_tasks_info_label)
 
         self.tabs = QTabWidget()
 
@@ -278,13 +315,23 @@ class MainWindow(QMainWindow):
         l3.addWidget(self.behavior_table)
         l3.addWidget(self.behavior_detail)
 
+        tab4 = QWidget()
+        l4 = QVBoxLayout(tab4)
+        l4.addLayout(self._build_info_row("About Background Tasks", self.background_tasks_info_btn))
+        l4.addWidget(self.background_tasks_info_label)
+        l4.addWidget(self.background_tasks_state_label)
+        l4.addWidget(self.background_tasks_table)
+        l4.addWidget(self.background_task_detail)
+
         self.tabs.addTab(tab1, "Findings")
         self.tabs.addTab(tab2, "Changes")
         self.tabs.addTab(tab3, "Behavior")
+        self.tabs.addTab(tab4, "Background Tasks")
 
         layout = QVBoxLayout()
         layout.addWidget(self.status)
         layout.addLayout(button_row)
+        layout.addWidget(self.schedule_status)
         layout.addWidget(self.tabs)
 
         container = QWidget()
@@ -293,20 +340,25 @@ class MainWindow(QMainWindow):
 
         self.findings.itemSelectionChanged.connect(self.on_finding_selected)
         self.behavior_table.itemSelectionChanged.connect(self.on_behavior_selected)
+        self.background_tasks_table.itemSelectionChanged.connect(self.on_background_task_selected)
         self.changes_table.load_changes([])
+        self.refresh_background_tasks_view()
         self.refresh_changes_preview()
         self.configure_schedule()
 
         QTimer.singleShot(0, lambda: show_first_run_notice(self))
 
-    def run_audit(self, mode):
+    def run_audit(self, mode, origin: str = "manual"):
         if self.audit_running:
             QMessageBox.information(self, "Audit Running", "Wait for the current scan to finish.")
             return
 
         log_message(f"UI requested audit mode={mode}")
 
+        self.current_audit_origin = origin
         self.audit_running = True
+        if origin == "scheduled":
+            self.refresh_schedule_status()
         self.status.setText(f"Running {mode} audit...")
 
         self.thread, self.worker = start_audit_in_thread(mode)
@@ -333,6 +385,8 @@ class MainWindow(QMainWindow):
             self.thread = None
 
         self.audit_running = False
+        self.configure_schedule()
+        self.current_audit_origin = None
 
     @Slot(str)
     def update_progress_text(self, message: str):
@@ -381,6 +435,11 @@ class MainWindow(QMainWindow):
         try:
             log_message("audit_finished called")
 
+            if self.current_audit_origin == "scheduled":
+                # Advance the schedule as soon as the worker succeeds so a later
+                # UI-only exception does not immediately retrigger the same run.
+                self.complete_scheduled_audit()
+
             previous = load_latest_snapshot()
             behavior = diff_behavior(report, previous)
             behavior_text = format_behavior_diff(behavior)
@@ -410,11 +469,11 @@ class MainWindow(QMainWindow):
             )
             self.findings.load_findings(self.current_findings)
             self.behavior_table.load_behavior(self.current_behavior)
+            self.refresh_background_tasks_view(report)
             mode = str(report.get("meta", {}).get("mode", ""))
             self.details.setHtml(format_summary_html(summary, mode))
             self.maybe_explain_limitations(limitations)
             self.refresh_changes_preview()
-            self.configure_schedule()
 
             self.maybe_prompt_for_baseline()
 
@@ -428,6 +487,8 @@ class MainWindow(QMainWindow):
 
     def audit_failed(self, message):
         log_message(f"audit_failed: {message}")
+        if self.current_audit_origin == "scheduled":
+            self.delay_scheduled_audit(60 * 60 * 1000, "Scheduled scan failed; retrying in 60 minutes")
         QMessageBox.critical(self, "Audit failed", message)
 
     def maybe_explain_limitations(self, limitations):
@@ -528,6 +589,16 @@ class MainWindow(QMainWindow):
             return
         self.behavior_detail.setText(item.toolTip() or item.text())
 
+    def on_background_task_selected(self):
+        row = self.background_tasks_table.currentRow()
+        task = self.background_tasks_table.task_at_row(row)
+        if not task:
+            self.background_task_detail.setText(
+                "Select a background task to read what AuditOS thinks it is doing, why it may be running, and what ending it might affect."
+            )
+            return
+        self.background_task_detail.setText(self.format_background_task_detail(task))
+
     def refresh_changes_preview(self):
         if not self.current_report:
             self.changes_info_label.setText(
@@ -601,31 +672,198 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             self.configure_schedule()
 
+    def refresh_background_tasks_view(self, report=None):
+        report = report or self.current_report or {}
+        meta = report.get("meta", {}) if isinstance(report, dict) else {}
+        mode = str(meta.get("mode", "")).lower()
+        background_section = report.get("background_tasks", {}) if isinstance(report, dict) else {}
+        items = background_section.get("items", []) if isinstance(background_section, dict) else []
+        if not isinstance(items, list):
+            items = []
+
+        self.current_background_tasks = items
+
+        if mode != "deep":
+            self.background_tasks_state_label.setText(
+                "Run Deep Audit to inspect live background tasks and see which ones AuditOS thinks deserve a closer look."
+            )
+            self.background_tasks_state_label.setVisible(True)
+            self.background_tasks_table.load_tasks(
+                [],
+                "Deep Audit adds the live background-task view. Quick Audit does not collect running process details.",
+            )
+            self.background_task_detail.setText(
+                "Run Deep Audit, then select a background task to read what AuditOS thinks it is doing and what ending it might affect."
+            )
+            return
+
+        review_count = sum(1 for item in items if str(item.get("review_status", "")) == "review")
+        unknown_count = sum(1 for item in items if str(item.get("review_status", "")) == "unknown")
+        if items:
+            summary = f"Showing {len(items)} background task(s) from this Deep Audit."
+            if review_count:
+                summary += f" {review_count} item(s) appear to deserve review first."
+            elif unknown_count:
+                summary += f" {unknown_count} item(s) are not yet confidently classified."
+            else:
+                summary += " AuditOS did not see any immediately suspicious patterns in the live task list."
+            self.background_tasks_state_label.setText(summary)
+        else:
+            self.background_tasks_state_label.setText(
+                "Deep Audit did not return any background task details for this scan."
+            )
+        self.background_tasks_state_label.setVisible(True)
+        self.background_tasks_table.load_tasks(
+            items,
+            "Deep Audit did not return any background task details for this scan.",
+        )
+        if items:
+            self.background_tasks_table.selectRow(0)
+            self.on_background_task_selected()
+        else:
+            self.background_task_detail.setText(
+                "Select a background task to read what AuditOS thinks it is doing, why it may be running, and what ending it might affect."
+            )
+
+    def format_background_task_detail(self, task: dict) -> str:
+        name = str(task.get("friendly_name") or task.get("name") or f"PID {task.get('pid', '?')}")
+        raw_name = str(task.get("name", "")).strip()
+        role_label = str(task.get("role_label", "Background task")).strip()
+        review_label = str(task.get("review_label", "")).strip()
+        review_reason = str(task.get("review_reason", "")).strip()
+        explanation = str(task.get("explanation", "")).strip()
+        impact_hint = str(task.get("impact_hint", "")).strip()
+        exe = str(task.get("exe", "")).strip()
+        cmdline_preview = str(task.get("cmdline_preview", "")).strip()
+        status = str(task.get("status", "")).strip()
+        username = str(task.get("username", "")).strip()
+        pid = task.get("pid", "")
+
+        parts = [
+            name,
+            f"AuditOS reads this as: {role_label}",
+            f"Attention: {review_label or 'Likely normal'}",
+            f"What it is probably doing: {explanation or 'No explanation available yet.'}",
+        ]
+
+        if review_reason:
+            parts.append(f"Why AuditOS highlighted it: {review_reason}")
+        if impact_hint:
+            parts.append(f"Possible impact if ended: {impact_hint}")
+        if raw_name and raw_name != name:
+            parts.append(f"Raw process name: {raw_name}")
+        if pid != "":
+            parts.append(f"PID: {pid}")
+        if status:
+            parts.append(f"Status: {status}")
+        if username:
+            parts.append(f"User: {username}")
+        if exe:
+            parts.append(f"Path: {exe}")
+        if cmdline_preview:
+            parts.append(f"Command preview: {cmdline_preview}")
+
+        return "\n\n".join(parts)
+
+    def refresh_schedule_status(self, settings=None):
+        settings = settings or load_settings()
+        if not settings.get("schedule_enabled"):
+            self.schedule_status.setText(
+                "Automatic scans are off. Open Settings if you want AuditOS to rerun scans while AuditOS stays open."
+            )
+            return
+
+        mode = str(settings.get("schedule_mode", "quick")).capitalize()
+        frequency = str(settings.get("schedule_frequency", "weekly")).capitalize()
+
+        if self.audit_running and self.current_audit_origin == "scheduled":
+            self.schedule_status.setText(
+                f"Automatic {mode.lower()} scan in progress. AuditOS will schedule the next {frequency.lower()} run when this one finishes."
+            )
+            return
+
+        next_run_at = parse_schedule_timestamp(settings.get("schedule_next_run_at"))
+        if not next_run_at:
+            self.schedule_status.setText(
+                f"Automatic scans are on, but the next {frequency.lower()} {mode.lower()} run has not been set yet. Reopen Settings to finish the schedule."
+            )
+            return
+
+        local_time = next_run_at.astimezone()
+        date_text = local_time.strftime("%b %d, %Y")
+        time_text = local_time.strftime("%I:%M %p").lstrip("0")
+        status_text = (
+            f"Automatic scans are on. Next {mode.lower()} scan: {date_text} at {time_text} ({frequency.lower()})."
+        )
+
+        last_run_at = parse_schedule_timestamp(settings.get("schedule_last_run_at"))
+        if last_run_at:
+            last_local = last_run_at.astimezone()
+            last_date_text = last_local.strftime("%b %d, %Y")
+            last_time_text = last_local.strftime("%I:%M %p").lstrip("0")
+            status_text += f" Last automatic scan: {last_date_text} at {last_time_text}."
+
+        self.schedule_status.setText(status_text)
+
     def configure_schedule(self):
         settings = load_settings()
         if not settings.get("schedule_enabled"):
             self.schedule_timer.stop()
+            self.refresh_schedule_status(settings)
+            return
+
+        updated = ensure_schedule_next_run(settings)
+        if updated != settings:
+            save_settings(updated)
+            settings = updated
+
+        interval_ms = next_schedule_timer_ms(settings)
+        if interval_ms is None:
+            self.schedule_timer.stop()
+            self.refresh_schedule_status(settings)
             return
 
         frequency = str(settings.get("schedule_frequency", "weekly")).lower()
-        interval_map = {
-            "daily": 24 * 60 * 60 * 1000,
-            "weekly": 7 * 24 * 60 * 60 * 1000,
-            "monthly": 30 * 24 * 60 * 60 * 1000,
-        }
-        interval_ms = interval_map.get(frequency, interval_map["weekly"])
+        next_run_at = settings.get("schedule_next_run_at", "unknown")
         self.schedule_timer.start(interval_ms)
+        self.refresh_schedule_status(settings)
         log_message(
-            f"Scheduled scans enabled: mode={settings.get('schedule_mode', 'quick')} frequency={frequency}"
+            f"Scheduled scans armed: mode={settings.get('schedule_mode', 'quick')} frequency={frequency} next_run_at={next_run_at}"
         )
+
+    def handle_schedule_timer(self):
+        settings = load_settings()
+        if not settings.get("schedule_enabled"):
+            return
+
+        if not is_schedule_due(settings):
+            interval_ms = next_schedule_timer_ms(settings)
+            if interval_ms is not None:
+                self.schedule_timer.start(interval_ms)
+            return
+
+        self.run_scheduled_audit()
+
+    def complete_scheduled_audit(self):
+        settings = load_settings()
+        updated = mark_schedule_completed(settings)
+        save_settings(updated)
+        self.refresh_schedule_status(updated)
+        log_message(f"Scheduled scan completed; next_run_at={updated.get('schedule_next_run_at')}")
+
+    def delay_scheduled_audit(self, delay_ms: int, reason: str):
+        settings = load_settings()
+        updated = delay_schedule_until(settings, delay_ms)
+        save_settings(updated)
+        self.configure_schedule()
+        log_message(f"{reason} next_run_at={updated.get('schedule_next_run_at')}")
 
     def run_scheduled_audit(self):
         settings = load_settings()
         if self.audit_running:
-            self.schedule_timer.start(15 * 60 * 1000)
-            log_message("Scheduled scan delayed because another audit is running")
+            self.delay_scheduled_audit(15 * 60 * 1000, "Scheduled scan delayed because another audit is running")
             return
 
         mode = str(settings.get("schedule_mode", "quick")).lower()
         log_message(f"Starting scheduled audit mode={mode}")
-        self.run_audit(mode)
+        self.run_audit(mode, origin="scheduled")

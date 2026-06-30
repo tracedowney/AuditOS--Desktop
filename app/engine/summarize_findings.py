@@ -90,6 +90,9 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
         if any(f["category"] in {"active_connections", "listening_ports"} for f in all_findings):
             plain_summary.append("Deep Audit saw live network activity or open ports that you may want to recognize and verify.")
 
+        if any(f["category"] == "background_tasks" for f in all_findings):
+            plain_summary.append("Deep Audit found background tasks worth verifying, especially ones running from unusual locations or acting as command hosts.")
+
     if limitations:
         plain_summary.append("Some parts of the scan had reduced visibility because the operating system limited access.")
 

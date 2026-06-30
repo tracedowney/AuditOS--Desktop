@@ -73,17 +73,21 @@ def load_last_report():
 
 
 def load_settings():
-    data = _load(SETTINGS_PATH)
-    if data:
-        return data
-
-    return {
+    defaults = {
         "schedule_enabled": False,
         "schedule_frequency": "weekly",
         "schedule_mode": "quick",
+        "schedule_last_run_at": None,
+        "schedule_next_run_at": None,
         "ai_enabled": False,
         "license_tier": "free",
     }
+
+    data = _load(SETTINGS_PATH)
+    if isinstance(data, dict):
+        return {**defaults, **data}
+
+    return defaults
 
 
 def save_settings(data: Dict[str, Any]):

@@ -19,6 +19,7 @@ def test_quick_audit_skips_deep_collectors(monkeypatch):
     monkeypatch.setattr(module, "audit_startup_items", lambda: _empty_component("startup_items"))
     monkeypatch.setattr(module, "audit_scheduled_tasks", lambda: _empty_component("scheduled_tasks"))
     monkeypatch.setattr(module, "audit_certificates", lambda: _empty_component("certificates"))
+    monkeypatch.setattr(module, "audit_background_tasks", lambda: (_ for _ in ()).throw(AssertionError("background tasks should not run")))
     monkeypatch.setattr(module, "audit_routes", lambda: (_ for _ in ()).throw(AssertionError("routes should not run")))
     monkeypatch.setattr(module, "audit_active_connections", lambda: (_ for _ in ()).throw(AssertionError("active connections should not run")))
     monkeypatch.setattr(module, "audit_listening_ports", lambda: (_ for _ in ()).throw(AssertionError("listening ports should not run")))
@@ -74,6 +75,7 @@ def test_deep_audit_includes_deep_collectors(monkeypatch):
     monkeypatch.setattr(module, "audit_startup_items", recorder("startup_items"))
     monkeypatch.setattr(module, "audit_scheduled_tasks", recorder("scheduled_tasks"))
     monkeypatch.setattr(module, "audit_certificates", recorder("certificates"))
+    monkeypatch.setattr(module, "audit_background_tasks", recorder("background_tasks"))
     monkeypatch.setattr(module, "audit_routes", recorder("routes"))
     monkeypatch.setattr(module, "audit_active_connections", recorder("active_connections"))
     monkeypatch.setattr(module, "audit_listening_ports", recorder("listening_ports"))
@@ -104,6 +106,7 @@ def test_deep_audit_includes_deep_collectors(monkeypatch):
         "startup_items",
         "scheduled_tasks",
         "certificates",
+        "background_tasks",
         "routes",
         "active_connections",
         "listening_ports",

@@ -60,6 +60,31 @@ def test_baseline_store_only_honors_current_version_payloads(monkeypatch, tmp_pa
     assert loaded_last_report["report"] == current_report
 
 
+def test_load_settings_merges_new_schedule_defaults(tmp_path):
+    module = importlib.import_module("app.services.baseline_store")
+    module = importlib.reload(module)
+    module.BASELINE_PATH = tmp_path / "baseline.json"
+    module.LAST_REPORT_PATH = tmp_path / "last_report.json"
+    module.SETTINGS_PATH = tmp_path / "settings.json"
+
+    module.SETTINGS_PATH.write_text(json.dumps({
+        "schedule_enabled": True,
+        "schedule_frequency": "monthly",
+        "schedule_mode": "deep",
+        "ai_enabled": True,
+        "license_tier": "free",
+    }), encoding="utf-8")
+
+    settings = module.load_settings()
+
+    assert settings["schedule_enabled"] is True
+    assert settings["schedule_frequency"] == "monthly"
+    assert settings["schedule_mode"] == "deep"
+    assert settings["schedule_last_run_at"] is None
+    assert settings["schedule_next_run_at"] is None
+    assert settings["ai_enabled"] is True
+
+
 def test_first_run_notice_only_honors_current_notice_version(monkeypatch, tmp_path):
     module = importlib.import_module("app.services.first_run_notice")
     module = importlib.reload(module)

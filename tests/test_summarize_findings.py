@@ -40,6 +40,17 @@ def test_summarize_findings_counts_nested_browser_extension_findings():
                 }
             ],
         },
+        "background_tasks": {
+            "component": "background_tasks",
+            "findings": [
+                {
+                    "category": "background_tasks",
+                    "detail": "Review this background task: PowerShell can run commands or scripts, and its command line looks unusually powerful or remote-driven",
+                    "score": 8,
+                    "severity": "high",
+                }
+            ],
+        },
         "listening_ports": {
             "component": "listening_ports",
             "findings": [
@@ -55,9 +66,17 @@ def test_summarize_findings_counts_nested_browser_extension_findings():
 
     summary = summarize_findings(report)
 
-    assert summary["total_findings"] == 4
-    assert summary["counts"] == {"high": 0, "medium": 1, "low": 3}
+    assert summary["total_findings"] == 5
+    assert summary["counts"] == {"high": 1, "medium": 1, "low": 3}
     assert any(
         "browser extension has permissions or site access" in line
+        for line in summary["plain_summary"]
+    )
+    assert any(
+        "apps or jobs that can start automatically with the system" in line
+        for line in summary["plain_summary"]
+    )
+    assert any(
+        "background tasks worth verifying" in line
         for line in summary["plain_summary"]
     )
