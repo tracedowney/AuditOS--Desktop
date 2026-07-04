@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any, Dict, List
 
 
@@ -38,13 +39,14 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
 
     for value in report.values():
         for finding in _collect_findings(value):
+            detail = str(finding.get("detail", ""))
+            if detail.startswith("Limited visibility:") and detail not in limitations:
+                limitations.append(detail)
+                continue
             key = _finding_key(finding)
             if key not in seen_findings:
                 all_findings.append(finding)
                 seen_findings.add(key)
-            detail = str(finding.get("detail", ""))
-            if detail.startswith("Limited visibility:") and detail not in limitations:
-                limitations.append(detail)
 
     all_findings.sort(key=lambda x: x.get("score", 0), reverse=True)
 
@@ -68,6 +70,13 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
         isinstance(item, dict) and isinstance(item.get("findings"), list) and item.get("findings")
         for item in browser_extension_items
     )
+    medium_or_high_findings = [f for f in all_findings if str(f.get("severity", "low")) in {"medium", "high"}]
+    medium_or_high_categories = Counter(str(f.get("category", "")).strip().lower() for f in medium_or_high_findings)
+    low_categories = Counter(
+        str(f.get("category", "")).strip().lower()
+        for f in all_findings
+        if str(f.get("severity", "low")) == "low"
+    )
 
     plain_summary = []
 
@@ -84,14 +93,28 @@ def summarize_findings(report: Dict[str, Any]) -> Dict[str, Any]:
         if has_browser_extension_findings:
             plain_summary.append("At least one browser extension has permissions or site access that may be broader than expected.")
 
-        if any(f["category"] in {"startup_items", "scheduled_tasks"} for f in all_findings):
+        if medium_or_high_categories.get("dns"):
+            plain_summary.append(
+                "Most of the higher-priority items in this scan were DNS server entries repeated across resolvers, so the real question is whether those few DNS servers are expected on this machine."
+            )
+
+        if medium_or_high_categories.get("routes"):
+            plain_summary.append("AuditOS also noticed a routing configuration detail worth verifying.")
+
+        if any(f["category"] in {"startup_items", "scheduled_tasks"} for f in medium_or_high_findings):
             plain_summary.append("AuditOS found apps or jobs that can start automatically with the system.")
+        elif any(low_categories.get(category) for category in ("startup_items", "scheduled_tasks")):
+            plain_summary.append("AuditOS also listed low-priority apps or jobs that start automatically with the system, but they did not drive the overall risk score.")
 
-        if any(f["category"] in {"active_connections", "listening_ports"} for f in all_findings):
+        if any(f["category"] in {"active_connections", "listening_ports"} for f in medium_or_high_findings):
             plain_summary.append("Deep Audit saw live network activity or open ports that you may want to recognize and verify.")
+        elif any(low_categories.get(category) for category in ("active_connections", "listening_ports")):
+            plain_summary.append("Deep Audit also recorded low-priority live network or open-port items to recognize, but they did not drive the overall risk score.")
 
-        if any(f["category"] == "background_tasks" for f in all_findings):
+        if any(f["category"] == "background_tasks" for f in medium_or_high_findings):
             plain_summary.append("Deep Audit found background tasks worth verifying, especially ones running from unusual locations or acting as command hosts.")
+        elif low_categories.get("background_tasks"):
+            plain_summary.append("Deep Audit also listed low-priority background-task context, but it did not drive the overall risk score.")
 
     if limitations:
         plain_summary.append("Some parts of the scan had reduced visibility because the operating system limited access.")

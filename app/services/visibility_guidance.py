@@ -30,14 +30,14 @@ def describe_limitation(note: str, host_os: str = "") -> str:
 
     if "process connection list" in lower:
         return (
-            f"{os_name} blocked AuditOS from reading live internet connections{count_label}. "
-            "The scan still finished, but the connection picture may be incomplete."
+            f"{os_name} blocked AuditOS from matching live internet connections to owning processes{count_label}. "
+            "The scan still finished, but the connection picture may be incomplete. This is a visibility limit, not a list of separate problems to investigate."
         )
 
     if "process socket list" in lower:
         return (
-            f"{os_name} blocked AuditOS from seeing some apps that were waiting for incoming connections{count_label}. "
-            "The open-port view may be incomplete."
+            f"{os_name} blocked AuditOS from matching some listening sockets to owning processes{count_label}. "
+            "The open-port view may be incomplete. This is a visibility limit, not a list of separate problems to investigate."
         )
 
     if "process record" in lower:

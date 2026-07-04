@@ -7,8 +7,9 @@ def test_describe_limitation_translates_process_connection_note():
     note = "Limited visibility: macOS denied access to 272 process connection list(s)"
     described = describe_limitation(note, "macOS-15")
 
-    assert "blocked AuditOS from reading live internet connections" in described
+    assert "blocked AuditOS from matching live internet connections to owning processes" in described
     assert "272" in described
+    assert "not a list of separate problems" in described
 
 
 def test_build_visibility_guidance_offers_macos_settings_path():

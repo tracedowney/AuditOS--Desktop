@@ -80,3 +80,49 @@ def test_summarize_findings_counts_nested_browser_extension_findings():
         "background tasks worth verifying" in line
         for line in summary["plain_summary"]
     )
+
+
+def test_summarize_findings_keeps_limitations_out_of_finding_counts():
+    report = {
+        "host_os": "macOS-15",
+        "dns_settings": {
+            "component": "dns_settings",
+            "findings": [
+                {
+                    "category": "dns",
+                    "detail": "Review custom public DNS server on 2 resolver entries: 151.236.14.64",
+                    "score": 4,
+                    "severity": "medium",
+                }
+            ],
+        },
+        "active_connections": {
+            "component": "active_connections",
+            "findings": [
+                {
+                    "category": "active_connections",
+                    "detail": "Limited visibility: macOS denied access to 271 process connection list(s)",
+                    "score": 1,
+                    "severity": "low",
+                }
+            ],
+        },
+        "listening_ports": {
+            "component": "listening_ports",
+            "findings": [
+                {
+                    "category": "listening_ports",
+                    "detail": "Limited visibility: macOS denied access to 271 process socket list(s)",
+                    "score": 1,
+                    "severity": "low",
+                }
+            ],
+        },
+    }
+
+    summary = summarize_findings(report)
+
+    assert summary["counts"] == {"high": 0, "medium": 1, "low": 0}
+    assert summary["total_findings"] == 1
+    assert len(summary["limitations"]) == 2
+    assert any("DNS server entries repeated across resolvers" in line for line in summary["plain_summary"])
