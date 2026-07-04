@@ -60,6 +60,37 @@ def test_baseline_store_only_honors_current_version_payloads(monkeypatch, tmp_pa
     assert loaded_last_report["report"] == current_report
 
 
+def test_baseline_store_keeps_compatible_beta_payloads_across_app_updates(tmp_path):
+    module = importlib.import_module("app.services.baseline_store")
+    module = importlib.reload(module)
+    module.BASELINE_PATH = tmp_path / "baseline.json"
+    module.LAST_REPORT_PATH = tmp_path / "last_report.json"
+    module.SETTINGS_PATH = tmp_path / "settings.json"
+
+    compatible_payload = {
+        "saved_at": "2026-07-01T00:00:00Z",
+        "app_version": "0.4.6-beta",
+        "data_version": "0.4.6-beta",
+        "report": {"summary": {"overall_risk": "low"}},
+    }
+    module.BASELINE_PATH.write_text(json.dumps(compatible_payload), encoding="utf-8")
+    module.LAST_REPORT_PATH.write_text(json.dumps(compatible_payload), encoding="utf-8")
+
+    loaded_baseline = module.load_baseline()
+    loaded_last_report = module.load_last_report()
+
+    assert loaded_baseline is not None
+    assert loaded_last_report is not None
+    assert loaded_baseline["report"] == compatible_payload["report"]
+    assert loaded_baseline["data_version"] == module.PERSISTENCE_VERSION
+    assert loaded_last_report["data_version"] == module.PERSISTENCE_VERSION
+
+    baseline_payload = json.loads(module.BASELINE_PATH.read_text(encoding="utf-8"))
+    last_report_payload = json.loads(module.LAST_REPORT_PATH.read_text(encoding="utf-8"))
+    assert baseline_payload["data_version"] == module.PERSISTENCE_VERSION
+    assert last_report_payload["data_version"] == module.PERSISTENCE_VERSION
+
+
 def test_load_settings_merges_new_schedule_defaults(tmp_path):
     module = importlib.import_module("app.services.baseline_store")
     module = importlib.reload(module)
@@ -114,6 +145,24 @@ def test_first_run_notice_only_honors_current_notice_version(monkeypatch, tmp_pa
             legacy_ack.write_text(original, encoding="utf-8")
 
 
+def test_first_run_notice_keeps_compatible_beta_acknowledgements(tmp_path):
+    module = importlib.import_module("app.services.first_run_notice")
+    module = importlib.reload(module)
+    module.ACK_FILE = tmp_path / "terms_acknowledged.json"
+
+    module.ACK_FILE.write_text(json.dumps({
+        "accepted": True,
+        "timestamp": "2026-07-01T00:00:00Z",
+        "app_version": "0.4.6-beta",
+        "notice_version": "0.4.6-beta",
+    }), encoding="utf-8")
+
+    assert module.acknowledged() is True
+
+    payload = json.loads(module.ACK_FILE.read_text(encoding="utf-8"))
+    assert payload["notice_version"] == module.DISCLOSURE_VERSION
+
+
 def test_behavior_snapshot_only_honors_current_version(monkeypatch, tmp_path):
     module = importlib.import_module("app.services.network_behavior_baseline")
     module = importlib.reload(module)
@@ -151,3 +200,35 @@ def test_behavior_snapshot_only_honors_current_version(monkeypatch, tmp_path):
     assert loaded is not None
     assert loaded["app_version"] == module.APP_VERSION
     assert loaded["data_version"] == module.PERSISTENCE_VERSION
+
+
+def test_behavior_snapshot_keeps_compatible_beta_history(tmp_path):
+    module = importlib.import_module("app.services.network_behavior_baseline")
+    module = importlib.reload(module)
+    module.HISTORY_DIR = tmp_path / "history"
+    module.HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    module.LEGACY_HISTORY_DIR = tmp_path / "legacy"
+    module.LEGACY_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+    compatible_snapshot = {
+        "saved_at": "2026-07-01T00:00:00Z",
+        "app_version": "0.4.6-beta",
+        "data_version": "0.4.6-beta",
+        "connections": [["chrome.exe", 443, "example.com"]],
+        "listening_ports": [],
+        "extensions": [],
+        "dns_servers": [],
+        "startup_items": [],
+        "scheduled_tasks": [],
+    }
+    snapshot_path = module.HISTORY_DIR / "20260701T000000Z.json"
+    snapshot_path.write_text(json.dumps(compatible_snapshot), encoding="utf-8")
+
+    loaded = module.load_latest_snapshot()
+
+    assert loaded is not None
+    assert loaded["connections"] == compatible_snapshot["connections"]
+    assert loaded["data_version"] == module.PERSISTENCE_VERSION
+
+    payload = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    assert payload["data_version"] == module.PERSISTENCE_VERSION

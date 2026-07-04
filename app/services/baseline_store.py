@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 from services.app_paths import ensure_user_data_dir
-from version_info import APP_VERSION, PERSISTENCE_VERSION
+from version_info import APP_VERSION, PERSISTENCE_VERSION, is_compatible_persistence_version
 
 APP_DIR = Path(__file__).resolve().parent.parent
 LEGACY_DATA_DIR = APP_DIR / "data"
@@ -30,20 +30,32 @@ def _load(path: Path) -> Optional[Dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _is_current_payload(data: Dict[str, Any] | None) -> bool:
+def _is_compatible_payload(data: Dict[str, Any] | None) -> bool:
     if not isinstance(data, dict):
         return False
     return (
-        data.get("app_version") == APP_VERSION
-        and data.get("data_version") == PERSISTENCE_VERSION
+        is_compatible_persistence_version(data.get("data_version"))
         and isinstance(data.get("report"), dict)
     )
 
 
+def _normalize_payload(path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = {
+        "saved_at": str(data.get("saved_at", "")).strip() or _utc_now_iso(),
+        "app_version": APP_VERSION,
+        "data_version": PERSISTENCE_VERSION,
+        "report": data["report"],
+    }
+    _save(path, normalized)
+    return normalized
+
+
 def _load_versioned(path: Path) -> Optional[Dict[str, Any]]:
     data = _load(path)
-    if not _is_current_payload(data):
+    if not _is_compatible_payload(data):
         return None
+    if data.get("app_version") != APP_VERSION or data.get("data_version") != PERSISTENCE_VERSION:
+        return _normalize_payload(path, data)
     return data
 
 

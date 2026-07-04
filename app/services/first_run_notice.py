@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from services.app_paths import ensure_user_data_dir
-from version_info import APP_VERSION, DISCLOSURE_VERSION
+from version_info import APP_VERSION, DISCLOSURE_VERSION, is_compatible_disclosure_version
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -56,13 +56,28 @@ def _load_ack_payload() -> dict | None:
         return None
 
 
+def _normalize_ack_payload(payload: dict) -> dict:
+    normalized = {
+        "accepted": True,
+        "timestamp": str(payload.get("timestamp", "")).strip() or _utc_now_iso(),
+        "app_version": APP_VERSION,
+        "notice_version": DISCLOSURE_VERSION,
+    }
+    ACK_FILE.write_text(json.dumps(normalized, indent=2), encoding="utf-8")
+    return normalized
+
+
 def acknowledged() -> bool:
     payload = _load_ack_payload()
     if not isinstance(payload, dict):
         return False
     if payload.get("accepted") is not True:
         return False
-    return payload.get("notice_version") == DISCLOSURE_VERSION
+    if not is_compatible_disclosure_version(payload.get("notice_version")):
+        return False
+    if payload.get("app_version") != APP_VERSION or payload.get("notice_version") != DISCLOSURE_VERSION:
+        _normalize_ack_payload(payload)
+    return True
 
 
 def save_ack():

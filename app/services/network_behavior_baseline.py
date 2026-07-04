@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 from services.app_paths import ensure_user_data_dir
-from version_info import APP_VERSION, PERSISTENCE_VERSION
+from version_info import APP_VERSION, PERSISTENCE_VERSION, is_compatible_persistence_version
 
 APP_DIR = Path(__file__).resolve().parent.parent
 LEGACY_DATA_DIR = APP_DIR / "data"
@@ -142,6 +142,22 @@ def save_snapshot(report: Dict[str, Any]) -> Path:
     return path
 
 
+def _normalize_snapshot(path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = {
+        "saved_at": str(data.get("saved_at", "")).strip() or _utc_now_iso(),
+        "app_version": APP_VERSION,
+        "data_version": PERSISTENCE_VERSION,
+        "connections": list(data.get("connections", [])),
+        "listening_ports": list(data.get("listening_ports", [])),
+        "extensions": list(data.get("extensions", [])),
+        "dns_servers": list(data.get("dns_servers", [])),
+        "startup_items": list(data.get("startup_items", [])),
+        "scheduled_tasks": list(data.get("scheduled_tasks", [])),
+    }
+    path.write_text(json.dumps(normalized, indent=2), encoding="utf-8")
+    return normalized
+
+
 def load_latest_snapshot() -> Dict[str, Any] | None:
     files = sorted(HISTORY_DIR.glob("*.json"))
     if not files and LEGACY_HISTORY_DIR.exists():
@@ -150,9 +166,10 @@ def load_latest_snapshot() -> Dict[str, Any] | None:
         data = json.loads(path.read_text(encoding="utf-8"))
         if (
             isinstance(data, dict)
-            and data.get("app_version") == APP_VERSION
-            and data.get("data_version") == PERSISTENCE_VERSION
+            and is_compatible_persistence_version(data.get("data_version"))
         ):
+            if data.get("app_version") != APP_VERSION or data.get("data_version") != PERSISTENCE_VERSION:
+                return _normalize_snapshot(path, data)
             return data
     return None
 
