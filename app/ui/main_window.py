@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer, Slot
+from PySide6.QtCore import Qt, QTimer, QUrl, Slot
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -45,6 +46,7 @@ from services.schedule_state import (
     next_schedule_timer_ms,
     parse_schedule_timestamp,
 )
+from services.visibility_guidance import build_visibility_guidance
 
 
 def _risk_color(risk: str) -> str:
@@ -55,18 +57,23 @@ def _risk_color(risk: str) -> str:
     }.get(risk, "#444444")
 
 
-def format_summary_html(summary: dict, mode: str = "") -> str:
+def format_summary_html(summary: dict, mode: str = "", host_os: str = "") -> str:
     counts = summary.get("counts", {})
     limitations = summary.get("limitations", [])
     plain_summary = summary.get("plain_summary", [])
+    guidance = build_visibility_guidance(limitations, host_os)
+    friendly_limitations = guidance.get("friendly_notes", [])
 
     summary_lines = "".join(
         f"<li>{line}</li>" for line in plain_summary
     ) or "<li>AuditOS is still gathering enough context to describe this scan.</li>"
 
     limitation_block = ""
-    if limitations:
-        limitation_items = "".join(f"<li>{note}</li>" for note in limitations)
+    if friendly_limitations:
+        limitation_items = "".join(f"<li>{note}</li>" for note in friendly_limitations)
+        summary_hint = guidance.get("summary_hint") or ""
+        if summary_hint:
+            limitation_items += f"<li>{summary_hint}</li>"
         limitation_block = (
             "<div style='margin-top:16px;'>"
             "<div style='font-size:15px;font-weight:700;color:#5f6368;margin-bottom:6px;'>Environment Notes</div>"
@@ -260,13 +267,13 @@ class MainWindow(QMainWindow):
         scorecard_header.addWidget(self.scorecard_risk)
 
         self.changes_info_label = QLabel(
-            "Changes compares this scan to your saved baseline or previous scan so you can see what appeared, disappeared, or changed."
+            "Changes compares this scan to your saved baseline or previous scan and explains why each new difference could matter."
         )
         self.changes_state_label = QLabel(
             "Run a scan, then AuditOS will compare it to your saved baseline or previous scan here."
         )
         self.behavior_info_label = QLabel(
-            "Behavior highlights internet activity, open ports, startup items, scheduled tasks, and extensions. Startup items and scheduled tasks are programs or jobs that can run automatically."
+            "Behavior highlights live network activity, open ports, startup items, scheduled tasks, and extensions in plainer language so you can tell what each item is likely doing."
         )
         self.background_tasks_info_label = QLabel(
             "Background Tasks lists running processes from Deep Audit and translates them into plainer language so unfamiliar names are easier to reason about."
@@ -456,11 +463,16 @@ class MainWindow(QMainWindow):
             summary = report.get("summary", {})
             self.current_findings = summary.get("top_findings", [])
             limitations = summary.get("limitations", [])
+            guidance = build_visibility_guidance(limitations, str(report.get("host_os", "")))
             overall_risk = str(summary.get("overall_risk", "unknown")).upper()
 
             status_text = f"Risk: {overall_risk}"
             if limitations:
-                status_text += f" | Limited visibility: {len(limitations)}"
+                status_note = str(guidance.get("status_note", "")).strip()
+                if status_note:
+                    status_text += f" | {status_note}"
+                else:
+                    status_text += " | Limited visibility"
 
             self.status.setText(status_text)
             self.scorecard_risk.setText(f"Overall Risk: {overall_risk}")
@@ -471,7 +483,7 @@ class MainWindow(QMainWindow):
             self.behavior_table.load_behavior(self.current_behavior)
             self.refresh_background_tasks_view(report)
             mode = str(report.get("meta", {}).get("mode", ""))
-            self.details.setHtml(format_summary_html(summary, mode))
+            self.details.setHtml(format_summary_html(summary, mode, str(report.get("host_os", ""))))
             self.maybe_explain_limitations(limitations)
             self.refresh_changes_preview()
 
@@ -501,12 +513,37 @@ class MainWindow(QMainWindow):
             return
 
         self.last_limitations_signature = signature
-        QMessageBox.information(
-            self,
-            "Limited Audit Visibility",
-            "AuditOS completed the scan, but parts of this system limited what could be inspected.\n\n"
-            "The details panel includes environment notes so you can see which areas had reduced visibility.",
-        )
+        host_os = ""
+        if isinstance(self.current_report, dict):
+            host_os = str(self.current_report.get("host_os", ""))
+        guidance = build_visibility_guidance(limitations, host_os)
+
+        box = QMessageBox(self)
+        box.setWindowTitle(str(guidance.get("dialog_title", "Limited Audit Visibility")))
+        box.setText(str(guidance.get("dialog_body", "")))
+
+        friendly_notes = guidance.get("friendly_notes", [])
+        if friendly_notes:
+            note_text = "\n".join(f"• {note}" for note in friendly_notes)
+            box.setInformativeText(note_text)
+
+        primary_label = str(guidance.get("primary_button", "")).strip()
+        primary_button = None
+        if primary_label:
+            primary_button = box.addButton(primary_label, QMessageBox.AcceptRole)
+        keep_button = box.addButton(str(guidance.get("secondary_button", "Keep Limited Scan")), QMessageBox.RejectRole)
+        box.exec()
+
+        if primary_button and box.clickedButton() == primary_button:
+            settings_url = str(guidance.get("settings_url", "")).strip()
+            help_url = str(guidance.get("help_url", "")).strip()
+            opened = False
+            if settings_url:
+                opened = QDesktopServices.openUrl(QUrl(settings_url))
+            if not opened and help_url:
+                QDesktopServices.openUrl(QUrl(help_url))
+        elif box.clickedButton() == keep_button:
+            log_message("User kept limited scan visibility")
 
     def save_current_baseline(self):
         try:
@@ -624,7 +661,7 @@ class MainWindow(QMainWindow):
                 "Save a baseline or run another scan and AuditOS will show what changed here."
             )
             self.changes_state_label.setText(
-                "No comparison source is available yet. Save a baseline or run another scan."
+                "No comparison source is available yet. Save a baseline or run another scan so AuditOS can explain what is newly different."
             )
             self.changes_state_label.setVisible(True)
             self.changes_table.load_changes([])
@@ -634,7 +671,7 @@ class MainWindow(QMainWindow):
         self.changes_table.load_changes(diff["changes"])
         if diff["count"] == 0:
             self.changes_info_label.setText(
-                f"AuditOS compared this scan with your {comparison_label} and did not find any new changes to call out."
+                f"AuditOS compared this scan with your {comparison_label} and did not find any new differences that deserve explanation here."
             )
             self.changes_state_label.setText("No new changes were detected.")
             self.changes_state_label.setVisible(True)
