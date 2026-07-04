@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, QUrl, Slot
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -46,7 +48,14 @@ from services.schedule_state import (
     next_schedule_timer_ms,
     parse_schedule_timestamp,
 )
+from services.update_checker import (
+    RELEASES_PAGE_URL,
+    UpdateCheckError,
+    UpdateCheckResult,
+    check_for_updates as perform_update_check,
+)
 from services.visibility_guidance import build_visibility_guidance
+from version_info import APP_VERSION
 
 
 def _risk_color(risk: str) -> str:
@@ -55,6 +64,19 @@ def _risk_color(risk: str) -> str:
         "MEDIUM": "#b26a00",
         "HIGH": "#b00020",
     }.get(risk, "#444444")
+
+
+def _format_release_date(value: str) -> str:
+    label = str(value).strip()
+    if not label:
+        return "an unknown date"
+
+    try:
+        parsed = datetime.fromisoformat(label.replace("Z", "+00:00"))
+    except ValueError:
+        return label
+
+    return parsed.strftime("%b %d, %Y")
 
 
 def format_summary_html(summary: dict, mode: str = "", host_os: str = "") -> str:
@@ -230,16 +252,18 @@ class MainWindow(QMainWindow):
         self.deep = QPushButton("Deep Audit")
         self.baseline = QPushButton("Save Baseline")
         self.settings_btn = QPushButton("Settings")
+        self.update_btn = QPushButton("Check for Updates")
         self.export_btn = QPushButton("Export Report")
 
         self.quick.clicked.connect(lambda: self.run_audit("quick"))
         self.deep.clicked.connect(lambda: self.run_audit("deep"))
         self.baseline.clicked.connect(self.save_current_baseline)
         self.settings_btn.clicked.connect(self.open_settings)
+        self.update_btn.clicked.connect(self.check_for_updates)
         self.export_btn.clicked.connect(self.export_report)
 
         button_row = QHBoxLayout()
-        for b in [self.quick, self.deep, self.baseline, self.settings_btn, self.export_btn]:
+        for b in [self.quick, self.deep, self.baseline, self.settings_btn, self.update_btn, self.export_btn]:
             button_row.addWidget(b)
 
         self.findings = FindingsTable()
@@ -703,6 +727,66 @@ class MainWindow(QMainWindow):
 
         log_message(f"Report exported to {path}")
         QMessageBox.information(self, "Exported", f"Saved report to {path}")
+
+    def check_for_updates(self):
+        self.status.setText(f"Checking for updates for AuditOS {APP_VERSION}...")
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            result = perform_update_check(APP_VERSION)
+        except UpdateCheckError as exc:
+            log_message(f"Update check failed: {exc}")
+            self.status.setText("Could not check for updates")
+            QMessageBox.warning(
+                self,
+                "Update Check Failed",
+                f"{exc}\n\nYou can still review builds manually on GitHub Releases.",
+            )
+            return
+        except Exception as exc:
+            log_message(f"Unexpected update check error: {exc}")
+            self.status.setText("Could not check for updates")
+            QMessageBox.warning(
+                self,
+                "Update Check Failed",
+                "AuditOS hit an unexpected problem while checking GitHub Releases.\n\n"
+                "You can still review builds manually on GitHub Releases.",
+            )
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        self.handle_update_check_result(result)
+
+    def handle_update_check_result(self, result: UpdateCheckResult):
+        self.status.setText(result.message)
+
+        if result.status == "update_available" and result.release:
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Information)
+            box.setWindowTitle("Update Available")
+            box.setText(result.message)
+
+            published_at = _format_release_date(result.release.published_at)
+            channel_label = "beta build" if result.release.is_prerelease else "release"
+            box.setInformativeText(
+                f"Current version: {result.current_version}\n"
+                f"Latest {channel_label}: {result.release.version}\n"
+                f"Published: {published_at}\n\n"
+                "Open the release page to download the newer build."
+            )
+            open_button = box.addButton("Open Release Page", QMessageBox.AcceptRole)
+            box.addButton("Not Now", QMessageBox.RejectRole)
+            box.exec()
+
+            if box.clickedButton() == open_button:
+                QDesktopServices.openUrl(QUrl(result.release.html_url or RELEASES_PAGE_URL))
+            return
+
+        if result.status == "up_to_date":
+            QMessageBox.information(self, "Up to Date", result.message)
+            return
+
+        QMessageBox.information(self, "No Release Found", result.message)
 
     def open_settings(self):
         dialog = SettingsDialog(self)

@@ -42,13 +42,19 @@ What this includes:
 
 - finish the scheduler and persistence hardening work already in progress
 - keep scheduled scans clearly limited to "runs while the app is open" during beta
+- improve upgrade continuity so normal beta installs do not feel like unnecessary resets
+- add a clear in-app update-check path so existing testers can discover new builds without hunting through releases
 - improve empty states, status messaging, and error handling where the app still feels uncertain
+- improve permission-limited scan messaging so users understand what the OS blocked, what more access would reveal, and where they can change that setting if they want to
+- harden first-run, upgrade, and clean-machine behavior so the app feels dependable outside the dev environment
 - keep tests covering persistence, scheduler state, and cross-platform behavior
 
 Exit criteria:
 
 - scheduler-related local changes are committed cleanly
 - the behavior is understandable in the UI
+- existing beta users have a clearer upgrade path
+- intentional scan limitations are explained in plain language
 - the current test suite passes after the work is finalized
 
 ### 2. Keep macOS And Windows Releases Aligned
@@ -62,11 +68,14 @@ What this includes:
 - keep the Windows build path healthy, including VM and storage setup
 - smoke test the actual downloaded release assets, not just source runs
 - write down a repeatable release checklist so beta packaging is less fragile
+- move toward a more trusted release path, including macOS signing/notarization planning and a cleaner Windows install/update path
+- validate packaged builds on clean macOS and Windows environments before treating the beta as ready for broader outside testing
 
 Exit criteria:
 
 - both packaged builds come from the same source state
 - the release page clearly matches the code that produced the assets
+- packaged builds are tested as real end-user downloads on clean machines
 - the packaging flow feels repeatable instead of ad hoc
 
 ### 3. Make Beta Testing Easy To Understand And Easy To Join
@@ -114,6 +123,10 @@ These should move into active work after the current objectives are in a healthi
 - decide whether GitHub Actions should eventually build beta artifacts for both macOS and Windows
 - reduce the number of manual steps required to produce aligned releases
 - document a release checklist that covers build, smoke test, upload, and superseded-release handling
+- decide how AuditOS should handle in-app updates for beta users versus stable users
+- choose the long-term platform update path:
+  - Sparkle or equivalent for macOS
+  - WinSparkle or equivalent for Windows
 
 ### 2. Improve Signal Quality And Reporting Clarity
 

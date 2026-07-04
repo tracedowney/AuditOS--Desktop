@@ -13,6 +13,7 @@ The project is currently in beta. The focus right now is stability, clearer repo
 ## Get The Beta
 
 - Download the latest beta build from [GitHub Releases](https://github.com/tracedowney/AuditOS--Desktop/releases)
+- Use the in-app `Check for Updates` button to see whether a newer beta build is available
 - Use `Quick Audit` for a fast first pass
 - Use `Deep Audit` when you want extra network and routing visibility
 
@@ -44,6 +45,7 @@ When reporting an issue, include your platform, whether you ran Quick or Deep Au
 - Supports a broader `Deep Audit` for additional background-task, connection, listening-port, and routing visibility
 - Lets you save a baseline and compare later scans
 - Tracks behavior changes between scans so testers can spot what changed over time
+- Includes an in-app `Check for Updates` path that opens the matching GitHub release page when a newer build is available
 
 ## Core Principles
 
