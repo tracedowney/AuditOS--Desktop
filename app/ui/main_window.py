@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSplitter,
     QTabWidget,
     QTextEdit,
     QToolButton,
@@ -278,12 +279,20 @@ class MainWindow(QMainWindow):
         self.behavior_detail.setWordWrap(True)
         self.behavior_detail.setTextFormat(Qt.PlainText)
         self.behavior_detail.setStyleSheet("color: #5f6368; padding: 8px 4px;")
-        self.background_task_detail = QLabel(
-            "Run Deep Audit, then select a background task to read what AuditOS thinks it is doing and what ending it might affect."
+        self.background_task_detail = QTextEdit()
+        self.background_task_detail.setReadOnly(True)
+        self.background_task_detail.setMinimumHeight(210)
+        self.background_task_detail.setPlainText(
+            "Run Deep Audit, then select a background task to read what AuditOS thinks it is doing, what launched it, and what ending it might affect."
         )
-        self.background_task_detail.setWordWrap(True)
-        self.background_task_detail.setTextFormat(Qt.PlainText)
         self.background_task_detail.setStyleSheet("color: #5f6368; padding: 8px 4px;")
+        self.background_tasks_splitter = QSplitter(Qt.Vertical)
+        self.background_tasks_splitter.setChildrenCollapsible(False)
+        self.background_tasks_splitter.addWidget(self.background_tasks_table)
+        self.background_tasks_splitter.addWidget(self.background_task_detail)
+        self.background_tasks_splitter.setStretchFactor(0, 3)
+        self.background_tasks_splitter.setStretchFactor(1, 2)
+        self.background_tasks_splitter.setSizes([360, 260])
 
         scorecard_header = QHBoxLayout()
         scorecard_header.addWidget(self.scorecard_title)
@@ -351,8 +360,7 @@ class MainWindow(QMainWindow):
         l4.addLayout(self._build_info_row("About Background Tasks", self.background_tasks_info_btn))
         l4.addWidget(self.background_tasks_info_label)
         l4.addWidget(self.background_tasks_state_label)
-        l4.addWidget(self.background_tasks_table)
-        l4.addWidget(self.background_task_detail)
+        l4.addWidget(self.background_tasks_splitter, 1)
 
         self.tabs.addTab(tab1, "Findings")
         self.tabs.addTab(tab2, "Changes")
@@ -654,11 +662,11 @@ class MainWindow(QMainWindow):
         row = self.background_tasks_table.currentRow()
         task = self.background_tasks_table.task_at_row(row)
         if not task:
-            self.background_task_detail.setText(
-                "Select a background task to read what AuditOS thinks it is doing, why it may be running, and what ending it might affect."
+            self.background_task_detail.setPlainText(
+                "Select a background task to read what AuditOS thinks it is doing, why it may be running, what launched it, and what ending it might affect."
             )
             return
-        self.background_task_detail.setText(self.format_background_task_detail(task))
+        self.background_task_detail.setPlainText(self.format_background_task_detail(task))
 
     def refresh_changes_preview(self):
         if not self.current_report:
@@ -813,13 +821,14 @@ class MainWindow(QMainWindow):
                 [],
                 "Deep Audit adds the live background-task view. Quick Audit does not collect running process details.",
             )
-            self.background_task_detail.setText(
-                "Run Deep Audit, then select a background task to read what AuditOS thinks it is doing and what ending it might affect."
+            self.background_task_detail.setPlainText(
+                "Run Deep Audit, then select a background task to read what AuditOS thinks it is doing, what launched it, and what ending it might affect."
             )
             return
 
         review_count = sum(1 for item in items if str(item.get("review_status", "")) == "review")
         unknown_count = sum(1 for item in items if str(item.get("review_status", "")) == "unknown")
+        auditos_count = sum(1 for item in items if str(item.get("role", "")) in {"auditos_app", "auditos_helper"})
         if items:
             summary = f"Showing {len(items)} background task(s) from this Deep Audit."
             if review_count:
@@ -828,6 +837,8 @@ class MainWindow(QMainWindow):
                 summary += f" {unknown_count} item(s) are not yet confidently classified."
             else:
                 summary += " AuditOS did not see any immediately suspicious patterns in the live task list."
+            if auditos_count:
+                summary += f" {auditos_count} AuditOS-related process(es) were recognized separately."
             self.background_tasks_state_label.setText(summary)
         else:
             self.background_tasks_state_label.setText(
@@ -841,9 +852,10 @@ class MainWindow(QMainWindow):
         if items:
             self.background_tasks_table.selectRow(0)
             self.on_background_task_selected()
+            self.background_tasks_splitter.setSizes([360, 260])
         else:
-            self.background_task_detail.setText(
-                "Select a background task to read what AuditOS thinks it is doing, why it may be running, and what ending it might affect."
+            self.background_task_detail.setPlainText(
+                "Select a background task to read what AuditOS thinks it is doing, why it may be running, what launched it, and what ending it might affect."
             )
 
     def format_background_task_detail(self, task: dict) -> str:
@@ -853,9 +865,15 @@ class MainWindow(QMainWindow):
         review_label = str(task.get("review_label", "")).strip()
         review_reason = str(task.get("review_reason", "")).strip()
         explanation = str(task.get("explanation", "")).strip()
+        command_summary = str(task.get("command_summary", "")).strip()
+        launch_summary = str(task.get("launch_summary", "")).strip()
         impact_hint = str(task.get("impact_hint", "")).strip()
         exe = str(task.get("exe", "")).strip()
         cmdline_preview = str(task.get("cmdline_preview", "")).strip()
+        parent_name = str(task.get("parent_friendly_name") or task.get("parent_name") or "").strip()
+        parent_exe = str(task.get("parent_exe", "")).strip()
+        parent_cmdline_preview = str(task.get("parent_cmdline_preview", "")).strip()
+        ppid = task.get("ppid", "")
         status = str(task.get("status", "")).strip()
         username = str(task.get("username", "")).strip()
         pid = task.get("pid", "")
@@ -867,10 +885,23 @@ class MainWindow(QMainWindow):
             f"What it is probably doing: {explanation or 'No explanation available yet.'}",
         ]
 
+        if command_summary:
+            parts.append(f"What the command suggests: {command_summary}")
+        if launch_summary:
+            parts.append(f"Launch context: {launch_summary}")
         if review_reason:
             parts.append(f"Why AuditOS highlighted it: {review_reason}")
         if impact_hint:
             parts.append(f"Possible impact if ended: {impact_hint}")
+        if parent_name:
+            parent_line = f"Likely parent: {parent_name}"
+            if isinstance(ppid, int):
+                parent_line += f" (PID {ppid})"
+            parts.append(parent_line)
+        if parent_exe:
+            parts.append(f"Parent path: {parent_exe}")
+        if parent_cmdline_preview:
+            parts.append(f"Parent command preview: {parent_cmdline_preview}")
         if raw_name and raw_name != name:
             parts.append(f"Raw process name: {raw_name}")
         if pid != "":

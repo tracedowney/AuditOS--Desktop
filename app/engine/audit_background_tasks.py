@@ -232,6 +232,18 @@ UNUSUAL_PATH_HINTS = (
     "/private/tmp/",
     "/tmp/",
 )
+AUDITOS_PATH_HINTS = (
+    "\\auditos--desktop\\",
+    "/auditos.app/",
+    "\\auditos.exe",
+    "/dist/auditos.app/",
+)
+AUDITOS_WORKSPACE_HINTS = (
+    "auditos--desktop",
+    "auditos.app",
+)
+AUDITOS_NAME_HINTS = {"auditos", "auditos.exe"}
+APP_TRANSLOCATION_HINT = "/apptranslocation/"
 
 
 def _friendly_name(name: str) -> str:
@@ -241,6 +253,14 @@ def _friendly_name(name: str) -> str:
     if normalized in MACOS_SYSTEM_HINTS:
         return MACOS_SYSTEM_HINTS[normalized]["friendly"]
     return name
+
+
+def _joined_text(parts: List[str]) -> str:
+    return " ".join(str(part).strip() for part in parts if str(part).strip())
+
+
+def _joined_lower(parts: List[str]) -> str:
+    return _joined_text(parts).lower()
 
 
 def _path_is_unusual(path: str) -> bool:
@@ -258,6 +278,30 @@ def _cmdline_preview(cmdline: List[str]) -> str:
         return ""
     preview = " ".join(str(part) for part in cmdline[:6]).strip()
     return preview[:220]
+
+
+def _looks_like_auditos_app(name: str, exe: str, cmdline: List[str]) -> bool:
+    lowered_name = str(name).strip().lower()
+    lowered_exe = str(exe).strip().lower()
+    if lowered_name in AUDITOS_NAME_HINTS:
+        return True
+    if any(hint in lowered_exe for hint in AUDITOS_PATH_HINTS):
+        return True
+    return any(hint in _joined_lower(cmdline) for hint in AUDITOS_PATH_HINTS)
+
+
+def _looks_like_auditos_workspace_command(
+    name: str,
+    exe: str,
+    cmdline: List[str],
+    parent_name: str = "",
+    parent_exe: str = "",
+    parent_cmdline: List[str] | None = None,
+) -> bool:
+    joined = _joined_lower(
+        [name, exe, *_safe_list(cmdline), parent_name, parent_exe, *_safe_list(parent_cmdline or [])]
+    )
+    return any(hint in joined for hint in AUDITOS_WORKSPACE_HINTS)
 
 
 def _looks_like_script_host(name: str) -> bool:
@@ -284,7 +328,58 @@ def _system_hint(name: str) -> Dict[str, Any] | None:
     return WINDOWS_SYSTEM_HINTS.get(lowered) or MACOS_SYSTEM_HINTS.get(lowered)
 
 
-def _classify_process(name: str, exe: str, cmdline: List[str]) -> Dict[str, str]:
+def _safe_list(value: Any) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(part) for part in value]
+
+
+def _command_summary(name: str, cmdline: List[str], role: str) -> str:
+    joined = _joined_text(cmdline)
+    joined_lower = joined.lower()
+    if role == "auditos_app":
+        if APP_TRANSLOCATION_HINT in joined_lower:
+            return "macOS launched this copy from an App Translocation path, which is common for a downloaded app bundle."
+        return "This appears to be the AuditOS desktop app itself."
+    if role == "auditos_helper":
+        if "pytest" in joined_lower:
+            return "The command line suggests it is running AuditOS tests from the project workspace."
+        if "<<'py'" in joined_lower or '<<"py"' in joined_lower:
+            return "The command line looks like an inline Python helper running from the AuditOS workspace."
+        return "The command line suggests it is working inside the AuditOS project rather than acting as an unrelated unknown script."
+    if role == "script_host" and "pytest" in joined_lower:
+        return "The command line suggests it is running tests."
+    return ""
+
+
+def _launch_summary(
+    role: str,
+    name: str,
+    exe: str,
+    cmdline: List[str],
+    parent_name: str,
+    parent_exe: str,
+    parent_cmdline: List[str],
+) -> str:
+    if role == "auditos_app":
+        return "This is an AuditOS desktop app process."
+    if _looks_like_auditos_app(parent_name, parent_exe, parent_cmdline):
+        return "It appears to have been launched by AuditOS."
+    if parent_name:
+        return f"It appears to have been launched by {_friendly_name(parent_name)}."
+    if role == "auditos_helper" or _looks_like_auditos_workspace_command(name, exe, cmdline, parent_name, parent_exe, parent_cmdline):
+        return "It appears to have been launched from the AuditOS workspace."
+    return ""
+
+
+def _classify_process(
+    name: str,
+    exe: str,
+    cmdline: List[str],
+    parent_name: str = "",
+    parent_exe: str = "",
+    parent_cmdline: List[str] | None = None,
+) -> Dict[str, str]:
     lowered = str(name).strip().lower()
     hint = _system_hint(name)
     if hint:
@@ -293,6 +388,38 @@ def _classify_process(name: str, exe: str, cmdline: List[str]) -> Dict[str, str]
             "friendly_name": hint["friendly"],
             "explanation": hint["explanation"],
             "impact_hint": hint["impact_hint"],
+            "command_summary": "",
+        }
+
+    if _looks_like_auditos_app(name, exe, cmdline):
+        explanation = "This is the AuditOS desktop application process."
+        if APP_TRANSLOCATION_HINT in str(exe).strip().lower():
+            explanation += " macOS is running it from an App Translocation path, which is common for a downloaded app opened before it is moved or fully trusted."
+        return {
+            "role": "auditos_app",
+            "friendly_name": "AuditOS",
+            "explanation": explanation,
+            "impact_hint": "Ending it closes that AuditOS app instance and stops any scan it is currently running.",
+            "command_summary": _command_summary(name, cmdline, "auditos_app"),
+        }
+
+    if _looks_like_script_host(name) and _looks_like_auditos_workspace_command(
+        name,
+        exe,
+        cmdline,
+        parent_name,
+        parent_exe,
+        _safe_list(parent_cmdline),
+    ):
+        friendly = _friendly_name(name)
+        return {
+            "role": "auditos_helper",
+            "friendly_name": friendly,
+            "explanation": (
+                f"{friendly} looks like a helper command running from the AuditOS project rather than an unrelated unknown background script."
+            ),
+            "impact_hint": "Ending it would stop that AuditOS helper, test, or development command.",
+            "command_summary": _command_summary(name, cmdline, "auditos_helper"),
         }
 
     if _looks_like_script_host(name):
@@ -305,6 +432,7 @@ def _classify_process(name: str, exe: str, cmdline: List[str]) -> Dict[str, str]
             "impact_hint": (
                 "Ending it stops the current script or command session. The impact depends on what launched it."
             ),
+            "command_summary": _command_summary(name, cmdline, "script_host"),
         }
 
     if lowered in KNOWN_APP_HELPERS:
@@ -313,6 +441,7 @@ def _classify_process(name: str, exe: str, cmdline: List[str]) -> Dict[str, str]
             "friendly_name": _friendly_name(name),
             "explanation": KNOWN_APP_HELPERS[lowered],
             "impact_hint": "Ending it usually affects the related app more than the operating system.",
+            "command_summary": "",
         }
 
     if _looks_like_generic_helper(name) or _app_path_hint(exe):
@@ -325,6 +454,7 @@ def _classify_process(name: str, exe: str, cmdline: List[str]) -> Dict[str, str]
             "impact_hint": (
                 "Ending it may interrupt sync, notifications, updates, or other helper work for that app until it restarts."
             ),
+            "command_summary": "",
         }
 
     return {
@@ -334,11 +464,14 @@ def _classify_process(name: str, exe: str, cmdline: List[str]) -> Dict[str, str]
             f"AuditOS could not confidently classify {_friendly_name(name)} from its name and executable path alone."
         ),
         "impact_hint": "Do not end it just because the name is unfamiliar. Verify its path and what launched it first.",
+        "command_summary": "",
     }
 
 
 def _role_label(role: str) -> str:
     return {
+        "auditos_app": "AuditOS app",
+        "auditos_helper": "AuditOS helper command",
         "app_helper": "Likely app helper",
         "script_host": "Script or command host",
         "system": "Likely operating system process",
@@ -357,34 +490,77 @@ def audit_background_tasks() -> Dict[str, Any]:
     findings: List[Dict[str, Any]] = []
     denied = 0
     seen_findings: set[tuple[str, str]] = set()
+    raw_processes: List[Dict[str, Any]] = []
 
     try:
-        for proc in psutil.process_iter(attrs=["pid", "name", "exe", "cmdline", "status", "username"]):
+        for proc in psutil.process_iter(attrs=["pid", "ppid", "name", "exe", "cmdline", "status", "username"]):
             try:
                 name = proc.info.get("name") or f"PID {proc.pid}"
                 exe = proc.info.get("exe") or ""
-                cmdline = proc.info.get("cmdline") or []
-                if not isinstance(cmdline, list):
-                    cmdline = []
+                cmdline = _safe_list(proc.info.get("cmdline") or [])
                 username = proc.info.get("username") or ""
                 status = proc.info.get("status") or ""
+                raw_processes.append(
+                    {
+                        "pid": proc.pid,
+                        "ppid": proc.info.get("ppid"),
+                        "name": name,
+                        "exe": exe,
+                        "cmdline": cmdline,
+                        "status": status,
+                        "username": username,
+                    }
+                )
             except (psutil.NoSuchProcess, psutil.AccessDenied, PermissionError):
                 denied += 1
                 continue
 
-            classification = _classify_process(name, exe, cmdline)
+        raw_by_pid = {
+            int(raw.get("pid", 0)): raw
+            for raw in raw_processes
+            if isinstance(raw.get("pid"), int) or str(raw.get("pid", "")).isdigit()
+        }
+
+        for raw in raw_processes:
+            name = str(raw.get("name", "")).strip() or f"PID {raw.get('pid', '?')}"
+            exe = str(raw.get("exe", "")).strip()
+            cmdline = _safe_list(raw.get("cmdline") or [])
+            username = str(raw.get("username", "")).strip()
+            status = str(raw.get("status", "")).strip()
+            ppid = raw.get("ppid")
+            parent = raw_by_pid.get(int(ppid)) if isinstance(ppid, int) else None
+            parent_name = str(parent.get("name", "")).strip() if isinstance(parent, dict) else ""
+            parent_exe = str(parent.get("exe", "")).strip() if isinstance(parent, dict) else ""
+            parent_cmdline = _safe_list(parent.get("cmdline") or []) if isinstance(parent, dict) else []
+
+            classification = _classify_process(name, exe, cmdline, parent_name, parent_exe, parent_cmdline)
             item = {
-                "pid": proc.pid,
+                "pid": raw.get("pid"),
+                "ppid": ppid,
                 "name": name,
                 "friendly_name": classification["friendly_name"],
                 "exe": exe,
                 "cmdline": cmdline,
                 "cmdline_preview": _cmdline_preview(cmdline),
+                "parent_name": parent_name,
+                "parent_friendly_name": _friendly_name(parent_name) if parent_name else "",
+                "parent_exe": parent_exe,
+                "parent_cmdline_preview": _cmdline_preview(parent_cmdline),
                 "status": status,
                 "username": username,
                 "role": classification["role"],
                 "role_label": _role_label(classification["role"]),
                 "explanation": classification["explanation"],
+                "command_summary": classification.get("command_summary", ""),
+                "launch_summary": _launch_summary(
+                    classification["role"],
+                    name,
+                    exe,
+                    cmdline,
+                    parent_name,
+                    parent_exe,
+                    parent_cmdline,
+                ),
                 "impact_hint": classification["impact_hint"],
                 "review_status": "standard",
                 "review_label": "Likely normal",
@@ -395,6 +571,15 @@ def audit_background_tasks() -> Dict[str, Any]:
             hint = _system_hint(name)
             command_is_review_worthy = _command_line_is_review_worthy(cmdline)
             unusual_path = _path_is_unusual(exe)
+
+            if classification["role"] in {"auditos_app", "auditos_helper"}:
+                _mark_item_review(
+                    item,
+                    "standard",
+                    "Recognized AuditOS task",
+                    "This looks like AuditOS itself or a helper/test command tied to the AuditOS project.",
+                )
+                continue
 
             if hint and exe and hint["expected_paths"] and not _path_is_expected(hint["expected_paths"], exe):
                 detail = (

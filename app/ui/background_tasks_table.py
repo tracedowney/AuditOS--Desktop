@@ -3,13 +3,22 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem
 
 
 def _role_blurb(item: Dict[str, Any]) -> str:
+    parts = []
     explanation = str(item.get("explanation", "")).strip()
+    command_summary = str(item.get("command_summary", "")).strip()
+    launch_summary = str(item.get("launch_summary", "")).strip()
     if explanation:
-        return explanation
+        parts.append(explanation)
+    if command_summary:
+        parts.append(command_summary)
+    if launch_summary and launch_summary not in parts:
+        parts.append(launch_summary)
+    if parts:
+        return " ".join(parts)
     return "AuditOS does not have a plain-English explanation for this process yet."
 
 
@@ -20,10 +29,13 @@ class BackgroundTasksTable(QTableWidget):
         self.setHorizontalHeaderLabels(["Attention", "Process", "AuditOS Reads It As", "What It Means"])
         self.verticalHeader().setVisible(False)
         self.setWordWrap(True)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setAlternatingRowColors(True)
         header = self.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.Stretch)
 
@@ -76,13 +88,32 @@ class BackgroundTasksTable(QTableWidget):
         ]
         review_reason = str(item.get("review_reason", "")).strip()
         impact_hint = str(item.get("impact_hint", "")).strip()
+        command_summary = str(item.get("command_summary", "")).strip()
+        launch_summary = str(item.get("launch_summary", "")).strip()
+        parent_name = str(item.get("parent_friendly_name") or item.get("parent_name") or "").strip()
+        parent_pid = item.get("ppid")
+        parent_exe = str(item.get("parent_exe", "")).strip()
+        parent_cmdline_preview = str(item.get("parent_cmdline_preview", "")).strip()
         exe = str(item.get("exe", "")).strip()
         cmdline_preview = str(item.get("cmdline_preview", "")).strip()
 
+        if command_summary:
+            parts.append(f"What the command suggests: {command_summary}")
+        if launch_summary:
+            parts.append(f"Launch context: {launch_summary}")
         if review_reason:
             parts.append(f"Why AuditOS called this out: {review_reason}")
         if impact_hint:
             parts.append(f"Possible impact if ended: {impact_hint}")
+        if parent_name:
+            parent_line = f"Likely parent: {parent_name}"
+            if isinstance(parent_pid, int):
+                parent_line += f" (PID {parent_pid})"
+            parts.append(parent_line)
+        if parent_exe:
+            parts.append(f"Parent path: {parent_exe}")
+        if parent_cmdline_preview:
+            parts.append(f"Parent command: {parent_cmdline_preview}")
         if exe:
             parts.append(f"Path: {exe}")
         if cmdline_preview:

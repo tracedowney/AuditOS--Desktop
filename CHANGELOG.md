@@ -16,6 +16,7 @@ All notable changes to AuditOS should be documented in this file.
 - Scheduled scans now persist next-run state more safely, show clearer status messaging, and recover more gracefully when a scheduled run fails
 - Settings now preview automatic scan behavior and make the beta limitation explicit that scheduled scans only run while AuditOS is open
 - Compatible beta-to-beta updates now preserve saved baselines, behavior history, and the first-run acknowledgement instead of resetting them on every app version bump
+- Background Tasks now recognizes AuditOS-launched helper commands more clearly, shows launcher context when available, and gives the detail view a larger readable layout
 - Findings tooltips now surface more supporting detail, including process explanation, impact hints, paths, and command previews where available
 - Deep audit now degrades gracefully on macOS when the OS denies process or socket enumeration
 - macOS certificate checks no longer create a finding simply because certificates exist

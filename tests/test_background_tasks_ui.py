@@ -27,6 +27,8 @@ def test_background_tasks_table_loads_review_friendly_rows():
                 "review_label": "Review first",
                 "review_reason": "This process name matches a core operating system task, but the file path does not look like the normal system location.",
                 "explanation": "Hosts one or more Windows background services.",
+                "command_summary": "",
+                "launch_summary": "It appears to have been launched by Windows service host.",
                 "impact_hint": "Ending it may interrupt Windows features or services that depend on it.",
                 "exe": r"C:\Users\alice\Downloads\svchost.exe",
                 "cmdline_preview": r"C:\Users\alice\Downloads\svchost.exe",
@@ -79,10 +81,17 @@ def test_main_window_refreshes_background_task_tab_for_deep_audit(monkeypatch):
                     "review_status": "review",
                     "review_reason": "This script or command host is running with arguments that often deserve closer review.",
                     "explanation": "PowerShell can run commands or scripts in the background for apps, automation, or admin tasks.",
+                    "command_summary": "The command line suggests it is running a powerful scripted command.",
+                    "launch_summary": "It appears to have been launched by Windows Task Scheduler.",
                     "impact_hint": "Ending it stops the current script or command session. The impact depends on what launched it.",
                     "exe": r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
                     "cmdline_preview": "powershell.exe -EncodedCommand ...",
                     "pid": 202,
+                    "ppid": 101,
+                    "parent_name": "taskhostw.exe",
+                    "parent_friendly_name": "Windows task host",
+                    "parent_exe": r"C:\Windows\System32\taskhostw.exe",
+                    "parent_cmdline_preview": r"C:\Windows\System32\taskhostw.exe",
                     "status": "running",
                     "username": "alice",
                 }
@@ -96,8 +105,10 @@ def test_main_window_refreshes_background_task_tab_for_deep_audit(monkeypatch):
     assert window.background_tasks_table.rowCount() == 1
     window.background_tasks_table.selectRow(0)
     window.on_background_task_selected()
-    assert "Possible impact if ended" in window.background_task_detail.text()
-    assert "PowerShell" in window.background_task_detail.text()
+    detail_text = window.background_task_detail.toPlainText()
+    assert "Possible impact if ended" in detail_text
+    assert "PowerShell" in detail_text
+    assert "Likely parent: Windows task host" in detail_text
 
     window.schedule_timer.stop()
     window.close()
