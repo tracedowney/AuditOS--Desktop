@@ -2,7 +2,7 @@ from __future__ import annotations
 
 # App version is what users download. Persistence and disclosure versions are
 # separate so compatible beta-to-beta updates do not feel like fresh installs.
-APP_VERSION = "0.4.6-beta"
+APP_VERSION = "0.5.0-beta"
 DISCLOSURE_VERSION = "disclosure-v1"
 PERSISTENCE_VERSION = "persistence-v1"
 
@@ -13,11 +13,13 @@ LEGACY_COMPATIBLE_DISCLOSURE_VERSIONS = frozenset({
     "0.4.4-beta",
     "0.4.5-beta",
     "0.4.6-beta",
+    "0.5.0-beta",
 })
 LEGACY_COMPATIBLE_PERSISTENCE_VERSIONS = frozenset({
     "0.4.4-beta",
     "0.4.5-beta",
     "0.4.6-beta",
+    "0.5.0-beta",
 })
 
 

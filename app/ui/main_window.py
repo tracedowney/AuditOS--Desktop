@@ -654,15 +654,19 @@ class MainWindow(QMainWindow):
         self.current_visibility_guidance = dict(guidance or {})
         banner_text = str(self.current_visibility_guidance.get("banner_text", "")).strip()
         actionable = bool(self.current_visibility_guidance.get("actionable"))
+        has_instructions = bool(self.current_visibility_guidance.get("instructions"))
+        primary_label = str(self.current_visibility_guidance.get("primary_button", "")).strip()
 
-        if not actionable or not banner_text:
+        if not banner_text:
             self.visibility_banner.setVisible(False)
             self.visibility_banner_label.clear()
             return
 
         self.visibility_banner_label.setText(banner_text)
-        self.visibility_fix_btn.setText(str(self.current_visibility_guidance.get("primary_button", "Open Privacy & Security")))
-        self.visibility_help_btn.setVisible(bool(self.current_visibility_guidance.get("instructions")))
+        self.visibility_fix_btn.setVisible(actionable and bool(primary_label))
+        if actionable and primary_label:
+            self.visibility_fix_btn.setText(primary_label)
+        self.visibility_help_btn.setVisible(has_instructions)
         self.visibility_banner.setVisible(True)
 
     def open_visibility_settings(self):

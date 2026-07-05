@@ -59,6 +59,7 @@ hiddenimports = [
     "app.engine.dns_settings.linux",
     "app.engine.dns_settings.macos",
     "app.engine.dns_settings.windows",
+    "app.engine.live_network_collectors",
     "app.engine.network_interfaces.linux",
     "app.engine.network_interfaces.macos",
     "app.engine.network_interfaces.windows",

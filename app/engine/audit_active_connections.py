@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List
-import psutil
 
+from engine.live_network_collectors import collect_active_connection_items
 
 COMMON_WEB_PORTS = {80, 443, 8080, 8443}
 COMMON_DNS_PORTS = {53, 853}
@@ -13,6 +13,7 @@ SCRIPT_HOSTS = {
 }
 
 KNOWN_SERVICE_APPS = {
+    "apsd",
     "plex media server.exe",
     "supportassistagent.exe",
     "endpointprotection.exe",
@@ -78,107 +79,68 @@ def _target_label(ip: str, port: int) -> str:
 
 
 def audit_active_connections() -> Dict[str, Any]:
-    items: List[Dict[str, Any]] = []
+    items, limitations = collect_active_connection_items()
     findings: List[Dict[str, Any]] = []
-    denied = 0
+    for item in items:
+        remote_ip = str(item.get("remote_addr", ""))
+        remote_port = int(item.get("remote_port", 0))
+        name = str(item.get("name", ""))
+        exe = str(item.get("exe", ""))
 
-    try:
-        for proc in psutil.process_iter(attrs=["pid", "name", "exe"]):
-            try:
-                conns = proc.net_connections(kind="inet")
-            except (psutil.NoSuchProcess, psutil.AccessDenied, PermissionError):
-                denied += 1
-                continue
+        low_name = name.lower()
+        agent_like = low_name in KNOWN_SERVICE_APPS or any(h in low_name for h in KNOWN_SERVICE_APPS)
 
-            for conn in conns:
-                if not conn.raddr:
-                    continue
-
-                remote_ip = getattr(conn.raddr, "ip", "")
-                remote_port = getattr(conn.raddr, "port", 0)
-
-                name = proc.info.get("name") or ""
-                exe = proc.info.get("exe") or ""
-
-                item = {
-                    "pid": proc.pid,
-                    "name": name,
-                    "exe": exe,
-                    "local_addr": getattr(conn.laddr, "ip", ""),
-                    "local_port": getattr(conn.laddr, "port", 0),
-                    "remote_addr": remote_ip,
-                    "remote_port": remote_port,
-                    "status": conn.status,
-                }
-                items.append(item)
-
-                low_name = name.lower()
-                agent_like = low_name in KNOWN_SERVICE_APPS or any(h in low_name for h in KNOWN_SERVICE_APPS)
-
-                if suspicious_path(exe) and is_public(remote_ip):
-                    findings.append(
-                        make_finding(
-                            "active_connections",
-                            f"Review this internet connection: {_friendly_name(name)} is running from an unusual location and connected to {_target_label(remote_ip, remote_port)}",
-                            8,
-                            item,
-                        )
-                    )
-                    continue
-
-                if low_name in SCRIPT_HOSTS and is_public(remote_ip):
-                    findings.append(
-                        make_finding(
-                            "active_connections",
-                            f"Review this internet connection: {_friendly_name(name)} can run commands or scripts and connected to {_target_label(remote_ip, remote_port)}",
-                            6,
-                            item,
-                        )
-                    )
-                    continue
-
-                if agent_like:
-                    if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS:
-                        findings.append(
-                            make_finding(
-                                "active_connections",
-                                f"Likely normal background service: {_friendly_name(name)} connected to {_target_label(remote_ip, remote_port)} using uncommon port {remote_port}",
-                                1,
-                                item,
-                            )
-                        )
-                    continue
-
-                if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS and remote_port not in COMMON_DNS_PORTS:
-                    findings.append(
-                        make_finding(
-                            "active_connections",
-                            f"Review this internet connection: {_friendly_name(name)} connected to {_target_label(remote_ip, remote_port)} on uncommon port {remote_port}",
-                            3,
-                            item,
-                        )
-                    )
-    except (psutil.AccessDenied, PermissionError) as exc:
-        return {
-            "component": "active_connections",
-            "items": items,
-            "findings": [
+        if suspicious_path(exe) and is_public(remote_ip):
+            findings.append(
                 make_finding(
                     "active_connections",
-                    "Limited visibility: AuditOS could not enumerate process connections on this system",
-                    1,
-                    {"error": str(exc)},
+                    f"Review this internet connection: {_friendly_name(name)} is running from an unusual location and connected to {_target_label(remote_ip, remote_port)}",
+                    8,
+                    item,
                 )
-            ],
-        }
+            )
+            continue
 
-    if denied:
+        if low_name in SCRIPT_HOSTS and is_public(remote_ip):
+            findings.append(
+                make_finding(
+                    "active_connections",
+                    f"Review this internet connection: {_friendly_name(name)} can run commands or scripts and connected to {_target_label(remote_ip, remote_port)}",
+                    6,
+                    item,
+                )
+            )
+            continue
+
+        if agent_like:
+            if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS:
+                findings.append(
+                    make_finding(
+                        "active_connections",
+                        f"Likely normal background service: {_friendly_name(name)} connected to {_target_label(remote_ip, remote_port)} using uncommon port {remote_port}",
+                        1,
+                        item,
+                    )
+                )
+            continue
+
+        if is_public(remote_ip) and remote_port not in COMMON_WEB_PORTS and remote_port not in COMMON_DNS_PORTS:
+            findings.append(
+                make_finding(
+                    "active_connections",
+                    f"Review this internet connection: {_friendly_name(name)} connected to {_target_label(remote_ip, remote_port)} on uncommon port {remote_port}",
+                    3,
+                    item,
+                )
+            )
+
+    for limitation in limitations:
         findings.append(
             make_finding(
                 "active_connections",
-                f"Limited visibility: macOS denied access to {denied} process connection list(s)",
+                limitation,
                 1,
-                {"denied_processes": denied},
+                {},
             )
         )
 

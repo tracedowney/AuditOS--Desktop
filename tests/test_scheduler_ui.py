@@ -127,7 +127,7 @@ def test_format_summary_html_shows_current_scan_timestamp():
     assert "This scorecard reflects the scan that finished on Jul 04, 2026 at 6:33 PM." in html
 
 
-def test_limited_visibility_scan_shows_banner_and_disables_export_while_running(monkeypatch):
+def test_limited_visibility_scan_shows_informational_banner_and_disables_export_while_running(monkeypatch):
     module = importlib.import_module("ui.main_window")
     module = importlib.reload(module)
 
@@ -183,8 +183,8 @@ def test_limited_visibility_scan_shows_banner_and_disables_export_while_running(
     assert window.export_btn.isEnabled() is True
     assert window.baseline.isEnabled() is True
     assert window.visibility_banner.isHidden() is False
-    assert "Privacy & Security" in window.visibility_banner_label.text()
-    assert window.visibility_fix_btn.text() == "Open Privacy & Security"
+    assert "Full Disk Access may not remove this specific limit" in window.visibility_banner_label.text()
+    assert window.visibility_fix_btn.isHidden() is True
     assert window.visibility_help_btn.isHidden() is False
     assert "Jul 04, 2026 at 6:33 PM" in window.details.toPlainText()
 

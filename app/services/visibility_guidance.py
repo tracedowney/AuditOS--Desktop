@@ -28,16 +28,18 @@ def describe_limitation(note: str, host_os: str = "") -> str:
     os_name = "macOS" if _is_macos(host_os) else "The operating system"
     count_label = f" for about {count} running process(es)" if count else ""
 
-    if "process connection list" in lower:
+    if "process connection list" in lower or "process-to-connection ownership lookup" in lower:
         return (
             f"{os_name} blocked AuditOS from matching live internet connections to owning processes{count_label}. "
-            "The scan still finished, but the connection picture may be incomplete. This is a visibility limit, not a list of separate problems to investigate."
+            "The scan still finished, but the connection picture may be incomplete. This is a visibility limit, not a list of separate problems to investigate. "
+            "On macOS, this can remain true even after Full Disk Access because per-process network ownership may still require higher privileges."
         )
 
-    if "process socket list" in lower:
+    if "process socket list" in lower or "process-to-socket ownership lookup" in lower:
         return (
             f"{os_name} blocked AuditOS from matching some listening sockets to owning processes{count_label}. "
-            "The open-port view may be incomplete. This is a visibility limit, not a list of separate problems to investigate."
+            "The open-port view may be incomplete. This is a visibility limit, not a list of separate problems to investigate. "
+            "On macOS, this can remain true even after Full Disk Access because per-process socket ownership may still require higher privileges."
         )
 
     if "process record" in lower:
@@ -61,14 +63,16 @@ def summarize_limitations_for_status(limitations: List[str], host_os: str = "") 
     joined = " ".join(str(note).lower() for note in limitations)
     os_name = "macOS" if _is_macos(host_os) else "The OS"
 
-    if "process connection list" in joined and "process socket list" in joined:
-        return f"{os_name} reduced some live network visibility"
+    if ("process connection list" in joined or "process-to-connection ownership lookup" in joined) and (
+        "process socket list" in joined or "process-to-socket ownership lookup" in joined
+    ):
+        return f"{os_name} reduced some live network ownership visibility"
 
-    if "process connection list" in joined:
-        return f"{os_name} reduced some live connection visibility"
+    if "process connection list" in joined or "process-to-connection ownership lookup" in joined:
+        return f"{os_name} reduced some live connection ownership visibility"
 
-    if "process socket list" in joined:
-        return f"{os_name} reduced some open-port visibility"
+    if "process socket list" in joined or "process-to-socket ownership lookup" in joined:
+        return f"{os_name} reduced some open-port ownership visibility"
 
     if "process record" in joined:
         return f"{os_name} reduced some background-task visibility"
@@ -80,10 +84,10 @@ def build_visibility_guidance(limitations: List[str], host_os: str = "") -> Dict
     friendly_notes = [describe_limitation(note, host_os) for note in limitations if str(note).strip()]
     is_macos = _is_macos(host_os)
     joined = " ".join(str(note).lower() for note in limitations)
-    actionable = is_macos and any(
-        marker in joined
-        for marker in ("process connection list", "process socket list", "process record")
-    )
+    has_connection_ownership_limit = "process connection list" in joined or "process-to-connection ownership lookup" in joined
+    has_socket_ownership_limit = "process socket list" in joined or "process-to-socket ownership lookup" in joined
+    has_process_record_limit = "process record" in joined
+    actionable = is_macos and has_process_record_limit
 
     guidance: Dict[str, object] = {
         "actionable": actionable,
@@ -102,6 +106,31 @@ def build_visibility_guidance(limitations: List[str], host_os: str = "") -> Dict
         "secondary_button": "Keep Limited Scan",
         "summary_hint": "",
     }
+
+    if is_macos and (has_connection_ownership_limit or has_socket_ownership_limit):
+        guidance.update(
+            {
+                "dialog_title": "macOS Limited Connection Visibility",
+                "dialog_body": (
+                    "macOS blocked some of AuditOS's process-to-network ownership lookups.\n\n"
+                    "Full Disk Access can help some AuditOS visibility gaps, but this specific limit can remain because "
+                    "AuditOS is currently using a standard app session and macOS may still require higher privileges for "
+                    "per-process network ownership details."
+                ),
+                "banner_text": (
+                    "macOS still limited some process-to-network ownership mapping. Full Disk Access may not remove this "
+                    "specific limit for a standard desktop app session."
+                ),
+                "instructions": [
+                    "Treat this as partial ownership mapping, not as hundreds of separate items to investigate.",
+                    "AuditOS can still show the connections and listening ports it could attribute confidently.",
+                    "To improve this further, AuditOS likely needs a different macOS collector or a privileged helper rather than another manual privacy toggle.",
+                ],
+                "summary_hint": (
+                    "This type of macOS network ownership limit can remain even after Full Disk Access. AuditOS should describe it as partial attribution coverage, not a long review queue."
+                ),
+            }
+        )
 
     if actionable:
         guidance.update(
