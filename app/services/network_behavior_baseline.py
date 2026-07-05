@@ -49,6 +49,17 @@ def _friendly_program_name(name: str) -> str:
     return known.get(normalized.lower(), normalized)
 
 
+def _report_mode(report: Dict[str, Any]) -> str:
+    return str(report.get("meta", {}).get("mode", "")).strip().lower()
+
+
+def _report_captures_live_network(report: Dict[str, Any]) -> bool:
+    mode = _report_mode(report)
+    if mode == "deep":
+        return True
+    return any(section in report for section in ("active_connections", "listening_ports"))
+
+
 def _normalize_scheduled_task_label(label: str) -> str:
     normalized = str(label).strip()
     if not normalized:
@@ -150,6 +161,8 @@ def save_snapshot(report: Dict[str, Any]) -> Path:
         "saved_at": _utc_now_iso(),
         "app_version": APP_VERSION,
         "data_version": PERSISTENCE_VERSION,
+        "mode": _report_mode(report),
+        "captures_live_network": _report_captures_live_network(report),
         "connections": sorted(list(_connection_keys(report))),
         "listening_ports": sorted(list(_listening_keys(report))),
         "extensions": sorted(list(_extension_keys(report))),
@@ -166,6 +179,8 @@ def _normalize_snapshot(path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
         "saved_at": str(data.get("saved_at", "")).strip() or _utc_now_iso(),
         "app_version": APP_VERSION,
         "data_version": PERSISTENCE_VERSION,
+        "mode": str(data.get("mode", "")).strip().lower(),
+        "captures_live_network": bool(data.get("captures_live_network")),
         "connections": list(data.get("connections", [])),
         "listening_ports": list(data.get("listening_ports", [])),
         "extensions": list(data.get("extensions", [])),
@@ -181,7 +196,18 @@ def _normalize_snapshot(path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
-def load_latest_snapshot() -> Dict[str, Any] | None:
+def _snapshot_captures_live_network(snapshot: Dict[str, Any]) -> bool:
+    if bool(snapshot.get("captures_live_network")):
+        return True
+
+    mode = str(snapshot.get("mode", "")).strip().lower()
+    if mode == "deep":
+        return True
+
+    return bool(snapshot.get("connections") or snapshot.get("listening_ports"))
+
+
+def load_latest_snapshot(require_live_network: bool = False) -> Dict[str, Any] | None:
     files = sorted(HISTORY_DIR.glob("*.json"))
     if not files and LEGACY_HISTORY_DIR.exists():
         files = sorted(LEGACY_HISTORY_DIR.glob("*.json"))
@@ -192,12 +218,18 @@ def load_latest_snapshot() -> Dict[str, Any] | None:
             and is_compatible_persistence_version(data.get("data_version"))
         ):
             if data.get("app_version") != APP_VERSION or data.get("data_version") != PERSISTENCE_VERSION:
-                return _normalize_snapshot(path, data)
+                data = _normalize_snapshot(path, data)
+            if require_live_network and not _snapshot_captures_live_network(data):
+                continue
             return data
     return None
 
 
-def diff_behavior(report: Dict[str, Any], previous: Dict[str, Any] | None) -> Dict[str, Any]:
+def diff_behavior(
+    report: Dict[str, Any],
+    previous: Dict[str, Any] | None,
+    previous_live_network: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
     current_connections = _connection_keys(report)
     current_listening = _listening_keys(report)
     current_extensions = _extension_keys(report)
@@ -205,8 +237,9 @@ def diff_behavior(report: Dict[str, Any], previous: Dict[str, Any] | None) -> Di
     current_startup = _startup_keys(report)
     current_tasks = _task_keys(report)
 
-    old_connections = set(tuple(x) for x in previous.get("connections", [])) if previous else set()
-    old_listening = set(tuple(x) for x in previous.get("listening_ports", [])) if previous else set()
+    live_network_previous = previous_live_network if previous_live_network is not None else previous
+    old_connections = set(tuple(x) for x in live_network_previous.get("connections", [])) if live_network_previous else set()
+    old_listening = set(tuple(x) for x in live_network_previous.get("listening_ports", [])) if live_network_previous else set()
     old_extensions = set(tuple(x) for x in previous.get("extensions", [])) if previous else set()
     old_dns = set(previous.get("dns_servers", [])) if previous else set()
     old_startup = set(previous.get("startup_items", [])) if previous else set()
@@ -231,6 +264,7 @@ def diff_behavior(report: Dict[str, Any], previous: Dict[str, Any] | None) -> Di
 
     return {
         "has_previous": previous is not None,
+        "has_previous_live_network": live_network_previous is not None,
         "new_connections": new_connections,
         "new_listening_ports": new_listening,
         "current_connections": current_connections_visible,

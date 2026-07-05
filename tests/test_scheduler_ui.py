@@ -61,9 +61,9 @@ def test_scheduled_audit_completion_persists_even_if_ui_update_crashes(monkeypat
 
     monkeypatch.setattr(module, "load_settings", lambda: dict(current_settings))
     monkeypatch.setattr(module, "save_settings", lambda data: saved_settings.append(dict(data)))
-    monkeypatch.setattr(module, "load_latest_snapshot", lambda: None)
+    monkeypatch.setattr(module, "load_latest_snapshot", lambda require_live_network=False: None)
     monkeypatch.setattr(module, "save_snapshot", lambda report: None)
-    monkeypatch.setattr(module, "diff_behavior", lambda report, previous: {})
+    monkeypatch.setattr(module, "diff_behavior", lambda report, previous, previous_live_network=None: {})
     monkeypatch.setattr(module, "format_behavior_diff", lambda behavior: "")
     monkeypatch.setattr(module, "load_last_report", lambda: {})
     monkeypatch.setattr(module, "save_last_report", lambda report: None)
@@ -140,9 +140,9 @@ def test_limited_visibility_scan_shows_informational_banner_and_disables_export_
         "ai_enabled": False,
         "license_tier": "free",
     })
-    monkeypatch.setattr(module, "load_latest_snapshot", lambda: None)
+    monkeypatch.setattr(module, "load_latest_snapshot", lambda require_live_network=False: None)
     monkeypatch.setattr(module, "save_snapshot", lambda report: None)
-    monkeypatch.setattr(module, "diff_behavior", lambda report, previous: {})
+    monkeypatch.setattr(module, "diff_behavior", lambda report, previous, previous_live_network=None: {})
     monkeypatch.setattr(module, "format_behavior_diff", lambda behavior: "")
     monkeypatch.setattr(module, "load_last_report", lambda: {})
     monkeypatch.setattr(module, "save_last_report", lambda report: None)

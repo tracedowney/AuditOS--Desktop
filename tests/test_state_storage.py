@@ -265,3 +265,100 @@ def test_behavior_snapshot_normalizes_noisy_macos_launchd_labels(tmp_path):
         "application.com.apple.Passwords",
         "com.apple.mdworker.shared",
     ]
+
+
+def test_behavior_snapshot_can_find_latest_live_network_comparison(tmp_path):
+    module = importlib.import_module("app.services.network_behavior_baseline")
+    module = importlib.reload(module)
+    module.HISTORY_DIR = tmp_path / "history"
+    module.HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    module.LEGACY_HISTORY_DIR = tmp_path / "legacy"
+    module.LEGACY_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+    deep_snapshot = {
+        "saved_at": "2026-07-05T00:31:16Z",
+        "app_version": module.APP_VERSION,
+        "data_version": module.PERSISTENCE_VERSION,
+        "mode": "deep",
+        "captures_live_network": True,
+        "connections": [["Codex (Service)", 5228, "74.125.201.188"]],
+        "listening_ports": [["ControlCenter", 7000], ["SetappAgent", 2432]],
+        "extensions": [],
+        "dns_servers": [],
+        "startup_items": [],
+        "scheduled_tasks": [],
+    }
+    quick_snapshot = {
+        "saved_at": "2026-07-05T00:56:26Z",
+        "app_version": module.APP_VERSION,
+        "data_version": module.PERSISTENCE_VERSION,
+        "mode": "quick",
+        "captures_live_network": False,
+        "connections": [],
+        "listening_ports": [],
+        "extensions": [],
+        "dns_servers": [],
+        "startup_items": [],
+        "scheduled_tasks": [],
+    }
+
+    (module.HISTORY_DIR / "20260705T003116Z.json").write_text(json.dumps(deep_snapshot), encoding="utf-8")
+    (module.HISTORY_DIR / "20260705T005626Z.json").write_text(json.dumps(quick_snapshot), encoding="utf-8")
+
+    latest = module.load_latest_snapshot()
+    latest_live_network = module.load_latest_snapshot(require_live_network=True)
+
+    assert latest is not None
+    assert latest["mode"] == "quick"
+    assert latest_live_network is not None
+    assert latest_live_network["mode"] == "deep"
+    assert latest_live_network["listening_ports"] == [["ControlCenter", 7000], ["SetappAgent", 2432]]
+
+
+def test_diff_behavior_uses_comparable_live_network_snapshot_for_deep_scans():
+    module = importlib.import_module("app.services.network_behavior_baseline")
+    module = importlib.reload(module)
+
+    report = {
+        "meta": {"mode": "deep"},
+        "active_connections": {"items": []},
+        "listening_ports": {
+            "items": [
+                {"name": "ControlCenter", "local_port": 7000},
+                {"name": "SetappAgent", "local_port": 2432},
+                {"name": "kdc", "local_port": 88},
+            ]
+        },
+        "browser_extensions": {"items": []},
+        "dns_settings": {"adapters": []},
+        "startup_items": {"items": []},
+        "scheduled_tasks": {"items": []},
+    }
+    previous = {
+        "mode": "quick",
+        "captures_live_network": False,
+        "connections": [],
+        "listening_ports": [],
+        "extensions": [],
+        "dns_servers": [],
+        "startup_items": [],
+        "scheduled_tasks": [],
+    }
+    previous_live_network = {
+        "mode": "deep",
+        "captures_live_network": True,
+        "connections": [],
+        "listening_ports": [("ControlCenter", 7000), ("SetappAgent", 2432)],
+        "extensions": [],
+        "dns_servers": [],
+        "startup_items": [],
+        "scheduled_tasks": [],
+    }
+
+    diff = module.diff_behavior(report, previous, previous_live_network)
+
+    assert diff["has_previous"] is True
+    assert diff["has_previous_live_network"] is True
+    assert diff["new_listening_ports"] == [("kdc", 88)]
+    assert ("ControlCenter", 7000) in diff["current_listening_ports"]
+    assert ("SetappAgent", 2432) in diff["current_listening_ports"]

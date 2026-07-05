@@ -546,7 +546,10 @@ class MainWindow(QMainWindow):
                 self.complete_scheduled_audit()
 
             previous = load_latest_snapshot()
-            behavior = diff_behavior(report, previous)
+            previous_live_network = None
+            if str(report.get("meta", {}).get("mode", "")).strip().lower() == "deep":
+                previous_live_network = load_latest_snapshot(require_live_network=True)
+            behavior = diff_behavior(report, previous, previous_live_network)
             behavior_text = format_behavior_diff(behavior)
             save_snapshot(report)
 
