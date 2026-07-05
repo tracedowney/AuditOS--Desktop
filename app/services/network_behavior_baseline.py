@@ -49,6 +49,21 @@ def _friendly_program_name(name: str) -> str:
     return known.get(normalized.lower(), normalized)
 
 
+def _normalize_scheduled_task_label(label: str) -> str:
+    normalized = str(label).strip()
+    if not normalized:
+        return normalized
+
+    if normalized.startswith("com.apple.mdworker.shared."):
+        return "com.apple.mdworker.shared"
+
+    parts = normalized.split(".")
+    while parts and parts[-1].isdigit():
+        parts.pop()
+
+    return ".".join(parts) if parts else normalized
+
+
 def _should_hide_connection(name: str, remote_port: int, remote_addr: str) -> bool:
     normalized = str(name).strip().lower()
     if normalized in NOISY_WINDOWS_PROCESSES:
@@ -121,7 +136,11 @@ def _startup_keys(report: Dict[str, Any]) -> Set[str]:
 
 def _task_keys(report: Dict[str, Any]) -> Set[str]:
     items = report.get("scheduled_tasks", {}).get("items", [])
-    return {str(x.get("label", x.get("task_name", ""))) for x in items}
+    return {
+        _normalize_scheduled_task_label(str(x.get("label", x.get("task_name", ""))))
+        for x in items
+        if str(x.get("label", x.get("task_name", ""))).strip()
+    }
 
 
 def save_snapshot(report: Dict[str, Any]) -> Path:
@@ -152,7 +171,11 @@ def _normalize_snapshot(path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
         "extensions": list(data.get("extensions", [])),
         "dns_servers": list(data.get("dns_servers", [])),
         "startup_items": list(data.get("startup_items", [])),
-        "scheduled_tasks": list(data.get("scheduled_tasks", [])),
+        "scheduled_tasks": sorted({
+            _normalize_scheduled_task_label(str(task))
+            for task in data.get("scheduled_tasks", [])
+            if str(task).strip()
+        }),
     }
     path.write_text(json.dumps(normalized, indent=2), encoding="utf-8")
     return normalized

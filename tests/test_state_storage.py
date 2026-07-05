@@ -232,3 +232,36 @@ def test_behavior_snapshot_keeps_compatible_beta_history(tmp_path):
 
     payload = json.loads(snapshot_path.read_text(encoding="utf-8"))
     assert payload["data_version"] == module.PERSISTENCE_VERSION
+
+
+def test_behavior_snapshot_normalizes_noisy_macos_launchd_labels(tmp_path):
+    module = importlib.import_module("app.services.network_behavior_baseline")
+    module = importlib.reload(module)
+    module.HISTORY_DIR = tmp_path / "history"
+    module.HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    module.LEGACY_HISTORY_DIR = tmp_path / "legacy"
+    module.LEGACY_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+    report = {
+        "active_connections": {"items": []},
+        "listening_ports": {"items": []},
+        "browser_extensions": {"items": []},
+        "dns_settings": {"adapters": []},
+        "startup_items": {"items": []},
+        "scheduled_tasks": {
+            "items": [
+                {"label": "com.apple.mdworker.shared.01000000-0700-0000-0000-000000000000"},
+                {"label": "com.apple.mdworker.shared.02000000-0300-0000-0000-000000000000"},
+                {"label": "application.com.apple.Passwords.1152921500311895259.1152921500311895287"},
+            ]
+        },
+    }
+
+    module.save_snapshot(report)
+
+    loaded = module.load_latest_snapshot()
+    assert loaded is not None
+    assert loaded["scheduled_tasks"] == [
+        "application.com.apple.Passwords",
+        "com.apple.mdworker.shared",
+    ]

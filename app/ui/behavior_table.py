@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
+
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem
 
 
 def _friendly_item_name(name: str) -> str:
@@ -24,6 +26,62 @@ def _friendly_item_name(name: str) -> str:
     }
     key = str(name).strip().lower()
     return known.get(key, str(name))
+
+
+def _normalize_task_label(task: str) -> str:
+    normalized = str(task).strip()
+    if normalized.startswith("com.apple.mdworker.shared."):
+        return "com.apple.mdworker.shared"
+
+    parts = normalized.split(".")
+    while parts and parts[-1].isdigit():
+        parts.pop()
+    return ".".join(parts) if parts else normalized
+
+
+def _label_tail(label: str) -> str:
+    return str(label).rsplit(".", 1)[-1]
+
+
+def _pretty_words(value: str) -> str:
+    text = str(value).replace("_", " ")
+    text = re.sub(r"(?<!^)(?=[A-Z])", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text.title() if text else str(value)
+
+
+def _application_label_name(task: str) -> str:
+    normalized = _normalize_task_label(task)
+    if normalized.startswith("application."):
+        bundle_id = normalized[len("application."):]
+        if bundle_id == "com.apple.Passwords":
+            return "Apple Passwords app helper"
+        if bundle_id == "com.auditos.desktop":
+            return "AuditOS app helper"
+        if bundle_id.startswith("com.apple."):
+            return f"{_pretty_words(_label_tail(bundle_id))} app helper"
+        return f"{_pretty_words(_label_tail(bundle_id))} app helper"
+    return normalized
+
+
+def _friendly_task_name(task: str) -> str:
+    normalized = _normalize_task_label(task)
+    known = {
+        "com.apple.mdworker.shared": "macOS Spotlight metadata worker",
+        "com.apple.package-script-service": "macOS installer script service",
+        "com.anthropic.claudefordesktop.ShipIt": "Claude Desktop updater",
+        "com.setapp.DesktopClient.SetappAgent": "Setapp background agent",
+        "com.setapp.DesktopClient.SetappAssistant": "Setapp helper service",
+    }
+    if normalized in known:
+        return known[normalized]
+    if normalized.startswith("application."):
+        return _application_label_name(normalized)
+    if normalized.startswith("com.apple."):
+        return f"macOS system launch job ({_pretty_words(_label_tail(normalized))})"
+    if normalized.startswith("com.anthropic."):
+        return f"Claude-related launch job ({_pretty_words(_label_tail(normalized))})"
+    return normalized
 
 
 def _normality_label(name: str) -> str:
@@ -136,13 +194,46 @@ def _startup_detail(item: str) -> str:
 
 
 def _task_summary(task: str) -> str:
-    return f"{task} can run on a timer or trigger without you opening it manually."
+    normalized = _normalize_task_label(task)
+    friendly = _friendly_task_name(task)
+    if normalized == "com.apple.mdworker.shared":
+        return "macOS created another Spotlight metadata worker, which is usually tied to indexing or search work."
+    if normalized.startswith("application."):
+        return f"{friendly} appeared as a launchd helper entry for an app session, not as a standalone mystery task."
+    if normalized.startswith("com.apple."):
+        return f"{friendly} is a macOS launchd job. These are often normal system helpers rather than user-created scheduled tasks."
+    if "shipit" in normalized.lower() or "updater" in normalized.lower():
+        return f"{friendly} looks like an app updater or helper service that can launch in the background."
+    return f"{friendly} can run on a timer or trigger without you opening it manually."
 
 
 def _task_detail(task: str) -> str:
+    normalized = _normalize_task_label(task)
+    friendly = _friendly_task_name(task)
+    if normalized == "com.apple.mdworker.shared":
+        return (
+            f"{friendly} was not part of the earlier comparison snapshot.\n\n"
+            "On macOS this usually belongs to Spotlight metadata indexing, file previews, or search-related background work. "
+            "It is more like temporary system churn than a manually scheduled task.\n\n"
+            f"Raw launchd label family: {normalized}"
+        )
+    if normalized.startswith("application."):
+        return (
+            f"{friendly} was not part of the earlier comparison snapshot.\n\n"
+            "On macOS, labels that start with `application.` are often per-app launchd helpers created while an app is installed, open, or doing background work. "
+            "That is usually much less suspicious than the phrase \"new scheduled task\" makes it sound.\n\n"
+            f"Raw launchd label: {task}"
+        )
+    if normalized.startswith("com.apple."):
+        return (
+            f"{friendly} was not part of the earlier comparison snapshot.\n\n"
+            "This looks like a macOS system launchd job. Those jobs often appear and disappear as the system handles indexing, sync, notifications, media, or app support work.\n\n"
+            f"Raw launchd label: {task}"
+        )
     return (
-        f"{task} was not part of the earlier comparison snapshot.\n\n"
-        "Scheduled tasks are often legitimate system or app maintenance jobs, but they are also a common way to keep something running persistently in the background."
+        f"{friendly} was not part of the earlier comparison snapshot.\n\n"
+        "Scheduled tasks are often legitimate system or app maintenance jobs, but they are also a common way to keep something running persistently in the background.\n\n"
+        f"Raw task label: {task}"
     )
 
 
@@ -152,10 +243,13 @@ class BehaviorTable(QTableWidget):
         self.setHorizontalHeaderLabels(["What AuditOS Saw", "Program or Item", "What It Probably Means"])
         self.verticalHeader().setVisible(False)
         self.setWordWrap(True)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setAlternatingRowColors(True)
         header = self.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
         header.setSectionResizeMode(2, QHeaderView.Stretch)
 
     def _set_row(self, label: str, item_name: str, summary: str, detail: str):
@@ -237,7 +331,7 @@ class BehaviorTable(QTableWidget):
             detail = _task_detail(str(task))
             self._set_row(
                 "Task Changed",
-                str(task),
+                _friendly_task_name(str(task)),
                 _task_summary(str(task)),
                 detail,
             )

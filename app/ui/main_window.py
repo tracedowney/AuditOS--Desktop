@@ -80,7 +80,23 @@ def _format_release_date(value: str) -> str:
     return parsed.strftime("%b %d, %Y")
 
 
-def format_summary_html(summary: dict, mode: str = "", host_os: str = "") -> str:
+def _format_scan_timestamp(value: str) -> str:
+    label = str(value).strip()
+    if not label:
+        return ""
+
+    try:
+        parsed = datetime.fromisoformat(label.replace("Z", "+00:00"))
+    except ValueError:
+        return label
+
+    local_time = parsed.astimezone()
+    date_text = local_time.strftime("%b %d, %Y")
+    time_text = local_time.strftime("%I:%M %p").lstrip("0")
+    return f"{date_text} at {time_text}"
+
+
+def format_summary_html(summary: dict, mode: str = "", host_os: str = "", generated_at: str = "") -> str:
     counts = summary.get("counts", {})
     limitations = summary.get("limitations", [])
     plain_summary = summary.get("plain_summary", [])
@@ -109,9 +125,19 @@ def format_summary_html(summary: dict, mode: str = "", host_os: str = "") -> str
         pretty_mode = "Quick Audit" if str(mode).lower() == "quick" else "Deep Audit" if str(mode).lower() == "deep" else str(mode)
         mode_label = f"<div style='font-size: 16px; font-weight: 700; color: #5f6368; margin-bottom: 10px;'>{pretty_mode}</div>"
 
+    generated_label = _format_scan_timestamp(generated_at)
+    freshness_note = ""
+    if generated_label:
+        freshness_note = (
+            "<div style='font-size: 14px; color: #5f6368; margin-bottom: 14px;'>"
+            f"This scorecard reflects the scan that finished on {generated_label}."
+            "</div>"
+        )
+
     return f"""
     <div style="color: #202124; line-height: 1.45;">
       {mode_label}
+      {freshness_note}
 
       <div style="display: block; margin-bottom: 18px;">
         <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Total Findings</div>
@@ -230,6 +256,7 @@ class MainWindow(QMainWindow):
         self.current_behavior = {}
         self.current_background_tasks = []
         self.previous_report = None
+        self.current_visibility_guidance = {}
 
         self.thread = None
         self.worker = None
@@ -244,6 +271,26 @@ class MainWindow(QMainWindow):
         self.schedule_status = QLabel()
         self.schedule_status.setStyleSheet("color: #5f6368; padding: 2px 2px 8px 2px;")
         self.schedule_status.setWordWrap(True)
+        self.visibility_banner = QFrame()
+        self.visibility_banner.setVisible(False)
+        self.visibility_banner.setStyleSheet(
+            "QFrame { background: #edf6e9; border: 1px solid #c9d8c3; border-radius: 12px; }"
+        )
+        visibility_layout = QHBoxLayout(self.visibility_banner)
+        visibility_layout.setContentsMargins(12, 10, 12, 10)
+        visibility_layout.setSpacing(10)
+        self.visibility_banner_label = QLabel()
+        self.visibility_banner_label.setWordWrap(True)
+        self.visibility_banner_label.setStyleSheet("color: #2f5d31;")
+        self.visibility_fix_btn = QToolButton()
+        self.visibility_fix_btn.setText("Fix Visibility")
+        self.visibility_fix_btn.clicked.connect(self.open_visibility_settings)
+        self.visibility_help_btn = QToolButton()
+        self.visibility_help_btn.setText("How To")
+        self.visibility_help_btn.clicked.connect(self.show_visibility_instructions)
+        visibility_layout.addWidget(self.visibility_banner_label, 1)
+        visibility_layout.addWidget(self.visibility_fix_btn)
+        visibility_layout.addWidget(self.visibility_help_btn)
         self.scorecard_title = QLabel("AuditOS Scorecard")
         self.scorecard_risk = QLabel("Overall Risk: UNKNOWN")
         self.scorecard_title.setStyleSheet("font-size: 28px; font-weight: 800; color: #202124;")
@@ -275,10 +322,18 @@ class MainWindow(QMainWindow):
         self.details = QTextEdit()
         self.details.setReadOnly(True)
         self.details.setMinimumHeight(250)
-        self.behavior_detail = QLabel("Select a behavior item to read the full explanation.")
-        self.behavior_detail.setWordWrap(True)
-        self.behavior_detail.setTextFormat(Qt.PlainText)
+        self.behavior_detail = QTextEdit()
+        self.behavior_detail.setReadOnly(True)
+        self.behavior_detail.setMinimumHeight(190)
+        self.behavior_detail.setPlainText("Select a behavior item to read the fuller explanation and raw label context.")
         self.behavior_detail.setStyleSheet("color: #5f6368; padding: 8px 4px;")
+        self.behavior_splitter = QSplitter(Qt.Vertical)
+        self.behavior_splitter.setChildrenCollapsible(False)
+        self.behavior_splitter.addWidget(self.behavior_table)
+        self.behavior_splitter.addWidget(self.behavior_detail)
+        self.behavior_splitter.setStretchFactor(0, 3)
+        self.behavior_splitter.setStretchFactor(1, 2)
+        self.behavior_splitter.setSizes([320, 220])
         self.background_task_detail = QTextEdit()
         self.background_task_detail.setReadOnly(True)
         self.background_task_detail.setMinimumHeight(210)
@@ -306,7 +361,7 @@ class MainWindow(QMainWindow):
             "Run a scan, then AuditOS will compare it to your saved baseline or previous scan here."
         )
         self.behavior_info_label = QLabel(
-            "Behavior highlights live network activity, open ports, startup items, scheduled tasks, and extensions in plainer language so you can tell what each item is likely doing."
+            "Behavior highlights live network activity, open ports, startup items, launch jobs, and extensions in plainer language so you can tell what each item is likely doing. On macOS, many task labels come from launchd system/app helpers rather than a literal user-created scheduled task."
         )
         self.background_tasks_info_label = QLabel(
             "Background Tasks lists running processes from Deep Audit and translates them into plainer language so unfamiliar names are easier to reason about."
@@ -352,8 +407,7 @@ class MainWindow(QMainWindow):
         l3 = QVBoxLayout(tab3)
         l3.addLayout(self._build_info_row("About Behavior", self.behavior_info_btn))
         l3.addWidget(self.behavior_info_label)
-        l3.addWidget(self.behavior_table)
-        l3.addWidget(self.behavior_detail)
+        l3.addWidget(self.behavior_splitter, 1)
 
         tab4 = QWidget()
         l4 = QVBoxLayout(tab4)
@@ -371,6 +425,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status)
         layout.addLayout(button_row)
         layout.addWidget(self.schedule_status)
+        layout.addWidget(self.visibility_banner)
         layout.addWidget(self.tabs)
 
         container = QWidget()
@@ -383,6 +438,7 @@ class MainWindow(QMainWindow):
         self.changes_table.load_changes([])
         self.refresh_background_tasks_view()
         self.refresh_changes_preview()
+        self.refresh_primary_actions()
         self.configure_schedule()
 
         QTimer.singleShot(0, lambda: show_first_run_notice(self))
@@ -396,6 +452,7 @@ class MainWindow(QMainWindow):
 
         self.current_audit_origin = origin
         self.audit_running = True
+        self.refresh_primary_actions()
         if origin == "scheduled":
             self.refresh_schedule_status()
         self.status.setText(f"Running {mode} audit...")
@@ -424,6 +481,7 @@ class MainWindow(QMainWindow):
             self.thread = None
 
         self.audit_running = False
+        self.refresh_primary_actions()
         self.configure_schedule()
         self.current_audit_origin = None
 
@@ -447,6 +505,15 @@ class MainWindow(QMainWindow):
         row.addWidget(button)
         row.addStretch(1)
         return row
+
+    def refresh_primary_actions(self):
+        has_report = isinstance(self.current_report, dict)
+        busy = bool(self.audit_running)
+
+        self.quick.setEnabled(not busy)
+        self.deep.setEnabled(not busy)
+        self.baseline.setEnabled(has_report and not busy)
+        self.export_btn.setEnabled(has_report and not busy)
 
     def maybe_prompt_for_baseline(self):
         baseline = load_baseline()
@@ -487,6 +554,7 @@ class MainWindow(QMainWindow):
             self.current_report = report
             self.current_report["behavior_diff"] = behavior
             self.current_behavior = behavior
+            self.refresh_primary_actions()
 
             last_report = load_last_report()
             self.previous_report = last_report.get("report") if isinstance(last_report, dict) else None
@@ -496,6 +564,7 @@ class MainWindow(QMainWindow):
             self.current_findings = summary.get("top_findings", [])
             limitations = summary.get("limitations", [])
             guidance = build_visibility_guidance(limitations, str(report.get("host_os", "")))
+            self.update_visibility_banner(guidance)
             overall_risk = str(summary.get("overall_risk", "unknown")).upper()
 
             status_text = f"Risk: {overall_risk}"
@@ -515,7 +584,8 @@ class MainWindow(QMainWindow):
             self.behavior_table.load_behavior(self.current_behavior)
             self.refresh_background_tasks_view(report)
             mode = str(report.get("meta", {}).get("mode", ""))
-            self.details.setHtml(format_summary_html(summary, mode, str(report.get("host_os", ""))))
+            generated_at = str(report.get("meta", {}).get("generated_at", ""))
+            self.details.setHtml(format_summary_html(summary, mode, str(report.get("host_os", "")), generated_at))
             self.maybe_explain_limitations(limitations)
             self.refresh_changes_preview()
 
@@ -557,6 +627,9 @@ class MainWindow(QMainWindow):
         friendly_notes = guidance.get("friendly_notes", [])
         if friendly_notes:
             note_text = "\n".join(f"• {note}" for note in friendly_notes)
+            instructions = guidance.get("instructions", [])
+            if instructions:
+                note_text += "\n\nWhat to do next:\n" + "\n".join(f"{index}. {step}" for index, step in enumerate(instructions, start=1))
             box.setInformativeText(note_text)
 
         primary_label = str(guidance.get("primary_button", "")).strip()
@@ -576,6 +649,44 @@ class MainWindow(QMainWindow):
                 QDesktopServices.openUrl(QUrl(help_url))
         elif box.clickedButton() == keep_button:
             log_message("User kept limited scan visibility")
+
+    def update_visibility_banner(self, guidance: dict):
+        self.current_visibility_guidance = dict(guidance or {})
+        banner_text = str(self.current_visibility_guidance.get("banner_text", "")).strip()
+        actionable = bool(self.current_visibility_guidance.get("actionable"))
+
+        if not actionable or not banner_text:
+            self.visibility_banner.setVisible(False)
+            self.visibility_banner_label.clear()
+            return
+
+        self.visibility_banner_label.setText(banner_text)
+        self.visibility_fix_btn.setText(str(self.current_visibility_guidance.get("primary_button", "Open Privacy & Security")))
+        self.visibility_help_btn.setVisible(bool(self.current_visibility_guidance.get("instructions")))
+        self.visibility_banner.setVisible(True)
+
+    def open_visibility_settings(self):
+        guidance = self.current_visibility_guidance or {}
+        settings_url = str(guidance.get("settings_url", "")).strip()
+        help_url = str(guidance.get("help_url", "")).strip()
+        opened = False
+        if settings_url:
+            opened = QDesktopServices.openUrl(QUrl(settings_url))
+        if not opened and help_url:
+            QDesktopServices.openUrl(QUrl(help_url))
+
+    def show_visibility_instructions(self):
+        guidance = self.current_visibility_guidance or {}
+        instructions = guidance.get("instructions", [])
+        if not instructions:
+            return
+        text = "\n".join(f"{index}. {step}" for index, step in enumerate(instructions, start=1))
+        QMessageBox.information(
+            self,
+            "How To Improve Visibility",
+            "AuditOS cannot grant these permissions automatically, but it can point you to the right place.\n\n"
+            f"{text}",
+        )
 
     def save_current_baseline(self):
         try:
@@ -656,7 +767,7 @@ class MainWindow(QMainWindow):
         item = self.behavior_table.item(row, 2)
         if not item:
             return
-        self.behavior_detail.setText(item.toolTip() or item.text())
+        self.behavior_detail.setPlainText(item.toolTip() or item.text())
 
     def on_background_task_selected(self):
         row = self.background_tasks_table.currentRow()
@@ -714,6 +825,14 @@ class MainWindow(QMainWindow):
             self.changes_state_label.setVisible(False)
 
     def export_report(self):
+        if self.audit_running:
+            QMessageBox.information(
+                self,
+                "Audit Running",
+                "Wait for the current scan to finish before exporting so AuditOS saves the newest report.",
+            )
+            return
+
         if not self.current_report:
             QMessageBox.information(self, "No report", "Run an audit first.")
             return

@@ -25,3 +25,11 @@ def test_build_visibility_guidance_offers_macos_settings_path():
     assert guidance["settings_url"]
     assert "Privacy" in str(guidance["primary_button"])
     assert "live network visibility" in str(guidance["status_note"]).lower()
+    assert "does not always show a permission prompt" in str(guidance["dialog_body"])
+    assert guidance["instructions"] == [
+        "Open System Settings to Privacy & Security.",
+        "Open Full Disk Access.",
+        "If AuditOS is already listed, turn it on. If it is not listed, click the add button and choose AuditOS.",
+        "If macOS asks you to quit and reopen AuditOS, do that.",
+        "Run Deep Audit again so AuditOS can check whether visibility improved.",
+    ]

@@ -4,7 +4,7 @@ import re
 from typing import Dict, List
 
 MACOS_PRIVACY_SETTINGS_URL = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
-MACOS_PRIVACY_HELP_URL = "https://support.apple.com/guide/mac-help/control-access-to-files-and-folders-on-mac-mchlccb25729/mac"
+MACOS_PRIVACY_HELP_URL = "https://support.apple.com/guide/mac-help/change-privacy-security-settings-on-mac-mchl211c911f/mac"
 
 
 def _is_macos(host_os: str) -> bool:
@@ -91,6 +91,8 @@ def build_visibility_guidance(limitations: List[str], host_os: str = "") -> Dict
         "status_note": summarize_limitations_for_status(limitations, host_os),
         "settings_url": None,
         "help_url": None,
+        "banner_text": "",
+        "instructions": [],
         "dialog_title": "Limited Audit Visibility",
         "dialog_body": (
             "AuditOS completed the scan, but parts of the system limited what could be inspected.\n\n"
@@ -109,13 +111,25 @@ def build_visibility_guidance(limitations: List[str], host_os: str = "") -> Dict
                 "dialog_title": "macOS Limited Audit Visibility",
                 "dialog_body": (
                     "macOS blocked AuditOS from reading some live process or network details.\n\n"
-                    "AuditOS cannot override that automatically, but it can open Privacy & Security so you can decide "
-                    "whether to grant broader access. If you keep the current setting, AuditOS will continue scanning and "
-                    "clearly mark the limited areas."
+                    "AuditOS cannot override that automatically, and macOS does not always show a permission prompt for "
+                    "this kind of access on its own.\n\n"
+                    "AuditOS can open Privacy & Security so you can decide whether to grant broader access manually. If "
+                    "you keep the current setting, AuditOS will continue scanning and clearly mark the limited areas."
                 ),
+                "banner_text": (
+                    "macOS limited some live process and network visibility. AuditOS can open Privacy & Security and show "
+                    "you how to review Full Disk Access before you rerun Deep Audit."
+                ),
+                "instructions": [
+                    "Open System Settings to Privacy & Security.",
+                    "Open Full Disk Access.",
+                    "If AuditOS is already listed, turn it on. If it is not listed, click the add button and choose AuditOS.",
+                    "If macOS asks you to quit and reopen AuditOS, do that.",
+                    "Run Deep Audit again so AuditOS can check whether visibility improved.",
+                ],
                 "primary_button": "Open Privacy & Security",
                 "summary_hint": (
-                    "If you want fuller live process and network visibility, open Privacy & Security, adjust access, and rerun Deep Audit."
+                    "If you want fuller live process and network visibility, open Privacy & Security, review Full Disk Access for AuditOS, and rerun Deep Audit."
                 ),
             }
         )
