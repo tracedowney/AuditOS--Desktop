@@ -90,10 +90,9 @@ def _format_scan_timestamp(value: str) -> str:
     except ValueError:
         return label
 
-    local_time = parsed.astimezone()
-    date_text = local_time.strftime("%b %d, %Y")
-    time_text = local_time.strftime("%I:%M %p").lstrip("0")
-    return f"{date_text} at {time_text}"
+        date_text = parsed.strftime("%b %d, %Y")
+        time_text = parsed.strftime("%I:%M %p").lstrip("0")
+        return f"{date_text} at {time_text}"
 
 
 def format_summary_html(summary: dict, mode: str = "", host_os: str = "", generated_at: str = "") -> str:
