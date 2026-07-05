@@ -321,6 +321,20 @@ class MainWindow(QMainWindow):
         self.details = QTextEdit()
         self.details.setReadOnly(True)
         self.details.setMinimumHeight(250)
+        self.finding_detail = QTextEdit()
+        self.finding_detail.setReadOnly(True)
+        self.finding_detail.setMinimumHeight(190)
+        self.finding_detail.setPlainText(
+            "Select a finding to read the fuller explanation, possible impact, and any supporting path or command details AuditOS collected."
+        )
+        self.finding_detail.setStyleSheet("color: #5f6368; padding: 8px 4px;")
+        self.findings_splitter = QSplitter(Qt.Vertical)
+        self.findings_splitter.setChildrenCollapsible(False)
+        self.findings_splitter.addWidget(self.findings)
+        self.findings_splitter.addWidget(self.finding_detail)
+        self.findings_splitter.setStretchFactor(0, 3)
+        self.findings_splitter.setStretchFactor(1, 2)
+        self.findings_splitter.setSizes([340, 220])
         self.behavior_detail = QTextEdit()
         self.behavior_detail.setReadOnly(True)
         self.behavior_detail.setMinimumHeight(190)
@@ -393,7 +407,7 @@ class MainWindow(QMainWindow):
         l1 = QVBoxLayout(tab1)
         l1.addLayout(scorecard_header)
         l1.addWidget(self.details)
-        l1.addWidget(self.findings)
+        l1.addWidget(self.findings_splitter, 1)
 
         tab2 = QWidget()
         l2 = QVBoxLayout(tab2)
@@ -583,6 +597,14 @@ class MainWindow(QMainWindow):
                 f"font-size: 22px; font-weight: 800; color: {_risk_color(overall_risk)};"
             )
             self.findings.load_findings(self.current_findings)
+            if self.current_findings:
+                self.findings.selectRow(0)
+                self.on_finding_selected()
+                self.findings_splitter.setSizes([340, 220])
+            else:
+                self.finding_detail.setPlainText(
+                    "AuditOS did not surface any findings for this scan. If you run another scan later, select any finding here to read the fuller explanation and supporting details."
+                )
             self.behavior_table.load_behavior(self.current_behavior)
             self.refresh_background_tasks_view(report)
             mode = str(report.get("meta", {}).get("mode", ""))
@@ -760,11 +782,15 @@ class MainWindow(QMainWindow):
     def on_finding_selected(self):
         row = self.findings.currentRow()
         if row < 0 or row >= len(self.current_findings):
+            self.finding_detail.setPlainText(
+                "Select a finding to read the fuller explanation, possible impact, and any supporting path or command details AuditOS collected."
+            )
             return
         finding = self.current_findings[row]
         self.status.setText(
             f"Selected finding: {str(finding.get('severity', '')).upper()} | {finding.get('detail', '')}"
         )
+        self.finding_detail.setPlainText(self.findings.detail_text_at_row(row))
 
     def on_behavior_selected(self):
         row = self.behavior_table.currentRow()

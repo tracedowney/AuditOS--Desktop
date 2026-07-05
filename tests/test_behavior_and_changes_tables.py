@@ -93,3 +93,34 @@ def test_changes_table_explains_why_dns_change_matters():
 
     table.deleteLater()
     app.processEvents()
+
+
+def test_findings_table_exposes_supporting_detail_text():
+    module = importlib.import_module("ui.findings_table")
+    module = importlib.reload(module)
+
+    app = _app()
+    table = module.FindingsTable()
+    table.load_findings(
+        [
+            {
+                "severity": "medium",
+                "category": "dns",
+                "detail": "Review custom public DNS server on 3 resolver entries: 79.127.185.11",
+                "evidence": {
+                    "explanation": "This DNS server appears repeatedly across resolver entries, so it likely represents one custom resolver choice rather than three separate issues.",
+                    "impact_hint": "Unexpected DNS servers can affect privacy, filtering, or where web traffic gets routed for name lookups.",
+                    "exe": "/usr/sbin/scutil",
+                },
+            }
+        ]
+    )
+
+    detail = table.detail_text_at_row(0)
+
+    assert "custom resolver choice" in detail
+    assert "Possible impact:" in detail
+    assert "Path: /usr/sbin/scutil" in detail
+
+    table.deleteLater()
+    app.processEvents()

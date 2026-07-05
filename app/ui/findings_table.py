@@ -1,5 +1,5 @@
 ﻿from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem
 
 
 AREA_LABELS = {
@@ -24,6 +24,9 @@ class FindingsTable(QTableWidget):
         self.setHorizontalHeaderLabels(["Priority", "Area", "What AuditOS Found"])
         self.verticalHeader().setVisible(False)
         self.setWordWrap(True)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setAlternatingRowColors(True)
         header = self.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -68,3 +71,9 @@ class FindingsTable(QTableWidget):
             self.setItem(row, 2, detail_item)
 
         self.resizeRowsToContents()
+
+    def detail_text_at_row(self, row: int) -> str:
+        item = self.item(row, 2)
+        if not item:
+            return ""
+        return item.toolTip() or item.text()

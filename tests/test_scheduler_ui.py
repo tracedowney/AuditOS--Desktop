@@ -192,3 +192,68 @@ def test_limited_visibility_scan_shows_informational_banner_and_disables_export_
     window.close()
     window.deleteLater()
     app.processEvents()
+
+
+def test_findings_tab_shows_selected_finding_details_without_hover(monkeypatch):
+    module = importlib.import_module("ui.main_window")
+    module = importlib.reload(module)
+
+    monkeypatch.setattr(module, "load_settings", lambda: {
+        "schedule_enabled": False,
+        "schedule_frequency": "weekly",
+        "schedule_mode": "quick",
+        "schedule_last_run_at": None,
+        "schedule_next_run_at": None,
+        "ai_enabled": False,
+        "license_tier": "free",
+    })
+    monkeypatch.setattr(module, "load_latest_snapshot", lambda require_live_network=False: None)
+    monkeypatch.setattr(module, "save_snapshot", lambda report: None)
+    monkeypatch.setattr(module, "diff_behavior", lambda report, previous, previous_live_network=None: {})
+    monkeypatch.setattr(module, "format_behavior_diff", lambda behavior: "")
+    monkeypatch.setattr(module, "load_last_report", lambda: {})
+    monkeypatch.setattr(module, "save_last_report", lambda report: None)
+    monkeypatch.setattr(module, "load_baseline", lambda: None)
+    monkeypatch.setattr(module, "show_first_run_notice", lambda parent=None: None)
+    monkeypatch.setattr(module.QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    app = _app()
+    window = module.MainWindow()
+    monkeypatch.setattr(window, "maybe_explain_limitations", lambda limitations: None)
+    monkeypatch.setattr(window, "maybe_prompt_for_baseline", lambda: None)
+
+    report = {
+        "host_os": "macOS-15",
+        "meta": {"mode": "quick", "generated_at": "2026-07-04T21:18:00-05:00"},
+        "summary": {
+            "counts": {"high": 0, "medium": 1, "low": 0},
+            "overall_risk": "low",
+            "top_findings": [
+                {
+                    "severity": "medium",
+                    "category": "dns",
+                    "detail": "Review custom public DNS server on 3 resolver entries: 79.127.185.11",
+                    "evidence": {
+                        "explanation": "This DNS server appears repeatedly across resolver entries, so it likely represents one custom resolver choice rather than three separate issues.",
+                        "impact_hint": "Unexpected DNS servers can affect privacy, filtering, or where web traffic gets routed for name lookups.",
+                        "exe": "/usr/sbin/scutil",
+                    },
+                }
+            ],
+            "limitations": [],
+            "plain_summary": [],
+        },
+    }
+
+    window.audit_finished(report)
+
+    assert window.findings.currentRow() == 0
+    detail = window.finding_detail.toPlainText()
+    assert "custom resolver choice" in detail
+    assert "Possible impact:" in detail
+    assert "Path: /usr/sbin/scutil" in detail
+
+    window.schedule_timer.stop()
+    window.close()
+    window.deleteLater()
+    app.processEvents()
